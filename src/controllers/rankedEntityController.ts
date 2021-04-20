@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { User, Map } from "./models";
-import api from "./api";
-import { Mongoose, Model } from "mongoose";
+import { User, Map } from "../models";
+import api from "../api";
+import { Model } from "mongoose";
 
 export default class RankedEntityController {
     public static allUsers(req: Request, res: Response): void {

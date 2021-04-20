@@ -1,7 +1,8 @@
 require("dotenv").config();
 
 import express from "express";
-import RankedEntityController from "./controller";
+import RankedEntityController from "./controllers/rankedEntityController";
+import ResultController from "./controllers/resultController";
 
 import bodyParser from "body-parser";
 
@@ -48,10 +49,15 @@ class Server {
         router.get("/users/:id", RankedEntityController.getUser);
         router.post("/users/:id", RankedEntityController.createUser);
 
-        // Routes
         router.get("/maps", RankedEntityController.allMaps);
         router.get("/maps/:id", RankedEntityController.getMap);
         router.post("/maps/:id", RankedEntityController.createMap);
+
+        router.get("/results/", ResultController.allResults);
+        router.get("/results/:id", ResultController.getResult);
+        router.get("/results/user/:id", ResultController.getUserResults);
+        router.get("/results/map/:id", ResultController.getMapResults);
+        router.post("/results/", ResultController.createResult);
 
         router.listen(config.port, () => logging.info(NAMESPACE, `Server is running on port ${config.port}`));
     }

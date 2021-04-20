@@ -37,7 +37,18 @@ RatedEntitySchema.virtual("glixare").get(function (this: any): number {
     );
 });
 
+const ResultSchema = new mongoose.Schema(
+    {
+        user: { ref: "User", type: Number, required: true },
+        map: { ref: "Map", type: Number, required: true },
+        result: { type: Boolean, required: true }, // true = player won
+        processed: { type: Boolean, default: false },
+    },
+    { timestamps: true }
+);
+
 const User = mongoose.model("User", RatedEntitySchema);
 const Map = mongoose.model("Map", RatedEntitySchema);
+const Result = mongoose.model("Result", ResultSchema);
 
-export { User, Map };
+export { User, Map, Result };
