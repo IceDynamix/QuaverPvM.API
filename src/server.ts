@@ -1,7 +1,7 @@
 require("dotenv").config();
 
 import express from "express";
-import RatedEntityController from "./controllers/rankedEntityController";
+import EntityController from "./controllers/entityController";
 import ResultController from "./controllers/resultController";
 
 import bodyParser from "body-parser";
@@ -9,8 +9,7 @@ import bodyParser from "body-parser";
 import config from "./config/config";
 import logging from "./config/logging";
 
-import mongoose from "mongoose";
-import { RatedEntity } from "./models";
+import Database from "./config/database";
 
 const NAMESPACE = "Server";
 const router = express();
@@ -18,14 +17,7 @@ const router = express();
 class Server {
     constructor() {
         // Connect to Mongo
-        mongoose
-            .connect(config.databaseUrl, config.mongoOptions)
-            .then((result) => {
-                logging.info(NAMESPACE, "Connected to MongoDB");
-            })
-            .catch((error) => {
-                logging.error(NAMESPACE, error.message, error);
-            });
+        Database.connect();
 
         // Request logging
         router.use((req, res, next) => {
@@ -46,13 +38,13 @@ class Server {
         router.use(bodyParser.json());
 
         // Routes
-        router.get("/users", RatedEntityController.allUsers);
-        router.get("/users/:id", RatedEntityController.getUser);
-        router.post("/users/:id", RatedEntityController.createUser);
+        router.get("/users", EntityController.allUsers);
+        router.get("/users/:id", EntityController.getUser);
+        router.post("/users/:id", EntityController.createUser);
 
-        router.get("/maps", RatedEntityController.allMaps);
-        router.get("/maps/:id", RatedEntityController.getMap);
-        router.post("/maps/:id", RatedEntityController.createMap);
+        router.get("/maps", EntityController.allMaps);
+        router.get("/maps/:id", EntityController.getMap);
+        router.post("/maps/:id", EntityController.createMap);
 
         router.get("/results", ResultController.allResults);
         router.get("/results/:id", ResultController.getResult);

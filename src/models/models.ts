@@ -9,7 +9,7 @@ type EntityType = "map" | "user";
     schemaOptions: { timestamps: true, toObject: { getters: true }, toJSON: { virtuals: true } },
     options: { allowMixed: Severity.ALLOW },
 })
-class RatedEntityClass {
+class Entity {
     @prop()
     public quaverId?: number;
 
@@ -70,12 +70,12 @@ class RatedEntityClass {
 }
 
 @modelOptions({ schemaOptions: { timestamps: true } })
-class ResultClass {
-    @prop({ ref: RatedEntityClass })
-    public entity1: Ref<RatedEntityClass>;
+class Result {
+    @prop({ ref: Entity })
+    public entity1: Ref<Entity>;
 
-    @prop({ ref: RatedEntityClass })
-    public entity2: Ref<RatedEntityClass>;
+    @prop({ ref: Entity })
+    public entity2: Ref<Entity>;
 
     @prop()
     public result!: boolean; // from the perspective of entity1
@@ -84,8 +84,8 @@ class ResultClass {
     public processed?: boolean;
 }
 
-const RatedEntity = getModelForClass<typeof RatedEntityClass>(RatedEntityClass);
-const Result = getModelForClass<typeof ResultClass>(ResultClass);
+const EntityModel = getModelForClass<typeof Entity>(Entity);
+const ResultModel = getModelForClass<typeof Result>(Result);
 
 function createIdFilter(entityType: EntityType, input: string): any | null {
     const quaverId = parseInt(input);
@@ -94,4 +94,4 @@ function createIdFilter(entityType: EntityType, input: string): any | null {
     else return null;
 }
 
-export { RatedEntity, Result, EntityType, createIdFilter };
+export { EntityModel, ResultModel, EntityType, createIdFilter };

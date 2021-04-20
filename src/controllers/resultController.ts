@@ -1,12 +1,11 @@
-import { createIdFilter, EntityType, RatedEntity, Result } from "../models";
+import { createIdFilter, EntityType, EntityModel, ResultModel } from "../models/models";
 import { Request, Response } from "express";
-import { mongoose } from "@typegoose/typegoose";
 
 type ResultEntityBody = { entityType: EntityType; quaverId: number };
 
 export default class ResultController {
     public static allResults(req: Request, res: Response): void {
-        Result.find({})
+        ResultModel.find({})
             .populate("entity1")
             .populate("entity2")
             .exec()
@@ -20,7 +19,7 @@ export default class ResultController {
     }
 
     public static getResult(req: Request, res: Response): void {
-        Result.findById(req.params.id)
+        ResultModel.findById(req.params.id)
             .populate("entity1")
             .populate("entity2")
             .exec()
@@ -29,11 +28,11 @@ export default class ResultController {
     }
 
     public static getUserResults(req: Request, res: Response): void {
-        RatedEntity.findOne(createIdFilter("user", req.params.id))
+        EntityModel.findOne(createIdFilter("user", req.params.id))
             .then((quaverUser) => {
                 if (!quaverUser) res.status(500).json({ message: "Quaver user not found" });
                 else {
-                    Result.find({ $or: [{ entity1: quaverUser.id }, { entity2: quaverUser.id }] })
+                    ResultModel.find({ $or: [{ entity1: quaverUser.id }, { entity2: quaverUser.id }] })
                         .populate("entity1")
                         .populate("entity2")
                         .exec()
@@ -50,11 +49,11 @@ export default class ResultController {
     }
 
     public static getMapResults(req: Request, res: Response): void {
-        RatedEntity.findOne(createIdFilter("map", req.params.id))
+        EntityModel.findOne(createIdFilter("map", req.params.id))
             .then((quaverMap) => {
                 if (!quaverMap) res.status(500).json({ message: "Quaver map not found" });
                 else {
-                    Result.find({ $or: [{ entity1: quaverMap.id }, { entity2: quaverMap.id }] })
+                    ResultModel.find({ $or: [{ entity1: quaverMap.id }, { entity2: quaverMap.id }] })
                         .populate("entity1")
                         .populate("entity2")
                         .exec()
@@ -78,15 +77,15 @@ export default class ResultController {
             return;
         }
 
-        RatedEntity.findOne({ entityType: entity1.entityType, quaverId: entity1.quaverId })
+        EntityModel.findOne({ entityType: entity1.entityType, quaverId: entity1.quaverId })
             .then((entity1Doc) => {
                 if (!entity1Doc) res.status(500).json({ message: "Provided field entity1 does not exist" });
                 else {
-                    RatedEntity.findOne({ entityType: entity2.entityType, quaverId: entity2.quaverId })
+                    EntityModel.findOne({ entityType: entity2.entityType, quaverId: entity2.quaverId })
                         .then((entity2Doc) => {
                             if (!entity2Doc) res.status(500).json({ message: "Provided field entity2 does not exist" });
                             else {
-                                Result.create({ entity1: entity1Doc._id, entity2: entity2Doc._id, result })
+                                ResultModel.create({ entity1: entity1Doc._id, entity2: entity2Doc._id, result })
                                     .then((result) => res.status(201).json(result))
                                     .catch((err) => res.status(500).json({ message: err.message, err }));
                             }

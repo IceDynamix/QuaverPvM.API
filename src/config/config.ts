@@ -15,6 +15,7 @@ const config = {
         retryWrites: false,
     },
     apiBaseUrl: process.env.API_BASE_URL || "https://api.quavergame.com",
+    tau: process.env.GLICKO_TAU ? parseInt(process.env.GLICKO_TAU, 10) : 0.5,
 };
 
 export default config;
