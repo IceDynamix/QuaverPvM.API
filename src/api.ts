@@ -1,6 +1,6 @@
 import axios from "axios";
-import config from "../config/config";
-import logging from "../config/logging";
+import config from "./config/config";
+import logging from "./config/logging";
 
 const NAMESPACE: string = "API";
 
