@@ -9,7 +9,7 @@ const NAMESPACE = "GLICKO";
 Database.connect();
 
 class Glicko {
-    public static updateAll(): void {
+    public static updateAll(save: boolean = false): void {
         EntityModel.find()
             .exec()
             .then((entities) => {
@@ -53,23 +53,27 @@ class Glicko {
                                     .R()
                                     .toFixed(0)} | RD ${entity.rd?.toFixed(0)} -> ${player.Rating().RD().toFixed(0)}`
                             );
-                            entity.rating = player.Rating().R();
-                            entity.rd = player.Rating().RD();
-                            entity.volatility = player.Rating().Sigma();
-                            // entity.save();
+                            if (save) {
+                                entity.rating = player.Rating().R();
+                                entity.rd = player.Rating().RD();
+                                entity.volatility = player.Rating().Sigma();
+                                entity.save();
+                            }
                         }
 
-                        logging.debug(NAMESPACE, `Changed ${entities.length} entities`);
+                        if (save) {
+                            logging.debug(NAMESPACE, `Changed ${entities.length} entities`);
 
-                        // results.forEach((result) => {
-                        //     result.processed == false;
-                        //     result.save();
-                        // });
+                            results.forEach((result) => {
+                                result.processed == false;
+                                result.save();
+                            });
 
-                        logging.debug(NAMESPACE, `Marked ${results.length} results as processed`);
+                            logging.debug(NAMESPACE, `Marked ${results.length} results as processed`);
+                        }
                     });
             });
     }
 }
 
-Glicko.updateAll();
+Glicko.updateAll(false);
