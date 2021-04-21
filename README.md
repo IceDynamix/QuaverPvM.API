@@ -17,24 +17,24 @@ Base URL: `none yet lol`
 
 #### Query string parameters
 
-- `id?` *(ObjectId)*
-- `type?` *("user" | "map")*
-- `qid?` *(number)* - Search from Quaver ID, best paired with type.
+- `id?` (ObjectId)
+- `type?` ("user" | "map")
+- `qid?` (number) - Search from Quaver ID, best paired with type.
 
 ### GET `/results`
 
 #### Query string parameters
 
-- `id?` *(ObjectId)*
-- `entity?` *(ObjectId)*
-- `populate?` *(boolean)* - Whether to insert entity data directly into the response
+- `id?` (ObjectId)
+- `entity?` (ObjectId)
+- `populate?` (boolean) - Whether to insert entity data directly into the response
 
 ### GET `/datapoints`
 
 #### Query string parameters
 
-- `id?` *(ObjectId)*
-- `entity?` *(ObjectId)*
-- `before` *(ISODate)*
-- `after` *(ISODate)*
-- `populate?` *(boolean)* - Whether to insert entity data directly into the response
+- `id?` (ObjectId)
+- `entity?` (ObjectId)
+- `before?` (ISODate)
+- `after?` (ISODate)
+- `populate?` (boolean) - Whether to insert entity data directly into the response
