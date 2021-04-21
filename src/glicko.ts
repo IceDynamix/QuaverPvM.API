@@ -4,6 +4,7 @@ import { ResultModel } from "./models/result";
 import logging from "./config/logging";
 import Database from "./config/database";
 import config from "./config/config";
+import { DatapointModel } from "./models/datapoint";
 
 const NAMESPACE = "GLICKO";
 
@@ -11,6 +12,7 @@ Database.connect();
 
 class Glicko {
     public static async updateAll(save: boolean = false) {
+        let timestamp = new Date();
         let entities = await EntityModel.find().exec();
         let results = await ResultModel.find({ processed: false }).exec();
         let glickoPlayers: { [key: string]: Player } = {};
@@ -54,6 +56,7 @@ class Glicko {
                 entity.rd = player.Rating().RD();
                 entity.volatility = player.Rating().Sigma();
                 entity.save();
+                await DatapointModel.createNewDatapoint(entity._id, timestamp, entity.rating, entity.rd, entity.volatility);
             }
         }
 
@@ -61,15 +64,13 @@ class Glicko {
             logging.debug(NAMESPACE, `Changed ${entities.length} entities`);
 
             results.forEach((result) => {
-                result.processed == false;
+                result.processed == true;
                 result.save();
             });
 
             logging.debug(NAMESPACE, `Marked ${results.length} results as processed`);
         }
-
-        // TODO: Add history data point
     }
 }
 
-Glicko.updateAll(false);
+Glicko.updateAll(true);
