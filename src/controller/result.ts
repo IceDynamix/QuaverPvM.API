@@ -1,6 +1,7 @@
 import { ResultModel } from "../models/result";
 import { Request, Response } from "express";
 import ResponseHandler from "./response";
+import config from "../config/config";
 
 export default class ResultController {
     public static GET(req: Request, res: Response): void {
@@ -23,6 +24,11 @@ export default class ResultController {
     }
 
     public static POST(req: Request, res: Response): void {
+        res.header("Access-Control-Expose-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+        res.header("Access-Control-Allow-Origin", config.clientBaseUrl);
+        res.header("Access-Control-Allow-Credentials", "true");
+        res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE");
+        res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
         if (!req.user) {
             res.status(401).json({ message: "Not logged in" });
             return;

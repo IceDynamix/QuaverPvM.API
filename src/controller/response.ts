@@ -1,4 +1,5 @@
 import { Response } from "express";
+import config from "../config/config";
 
 export default class ResponseHandler {
     public static async handle(promise: Promise<Array<any> | any>, res: Response, status: number = 200) {

@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import config from "../config/config";
 import { EntityModel } from "../models/entity";
 import ResponseHandler from "./response";
 
@@ -15,7 +16,12 @@ export default class EntityController {
     }
 
     public static selfGET(req: Request, res: Response): void {
-        if (!req.user) res.status(401).json({ message: "Not logged in" });
+        res.header("Access-Control-Expose-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+        res.header("Access-Control-Allow-Origin", config.clientBaseUrl);
+        res.header("Access-Control-Allow-Credentials", "true");
+        res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE");
+        res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+        if (!req.user) res.status(200).json(null);
         else res.status(200).json(req.user);
     }
 

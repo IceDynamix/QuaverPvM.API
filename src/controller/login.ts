@@ -8,13 +8,13 @@ export default class LoginController {
         if (!req.user) {
             return res.redirect(`${config.quaverBaseUrl}/oauth2/authorize?redirect_url=${config.selfUrl}/verify`);
         } else {
-            return res.redirect("/");
+            return res.redirect(config.clientBaseUrl);
         }
     }
 
     public static logout(req: Request, res: Response) {
         req.logout();
-        res.redirect("/");
+        return res.redirect(config.clientBaseUrl);
     }
 
     public static async verify(req: Request, res: Response) {
@@ -31,7 +31,7 @@ export default class LoginController {
 
             req.login(pvmUser, function() {});
             res.end();
-            return res.redirect("/");
+            return res.redirect(config.clientBaseUrl);
         } catch (err) {
             res.status(500).json({ message: err.message, err });
         }
