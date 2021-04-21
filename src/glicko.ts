@@ -64,7 +64,7 @@ class Glicko {
             logging.debug(NAMESPACE, `Changed ${entities.length} entities`);
 
             results.forEach((result) => {
-                result.processed == true;
+                result.processed = true;
                 result.save();
             });
 
