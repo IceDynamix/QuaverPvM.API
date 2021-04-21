@@ -7,7 +7,9 @@ const router: Router = Router();
 
 router.get("/", (req, res) => res.json({ message: "Welcome to the QuaverPvM API!" }));
 router.get("/entities", EntityController.GET);
+router.get("/me", EntityController.selfGET);
 router.get("/results", ResultController.GET);
+router.post("/results", ResultController.POST);
 router.get("/datapoints", DatapointController.GET);
 
 export default router;

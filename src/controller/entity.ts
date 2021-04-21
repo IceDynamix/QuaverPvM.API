@@ -14,6 +14,11 @@ export default class EntityController {
         ResponseHandler.handle(EntityModel.find(filter).exec(), res);
     }
 
+    public static selfGET(req: Request, res: Response): void {
+        if (!req.user) res.status(401).json({ message: "Not logged in" });
+        else res.status(200).json(req.user);
+    }
+
     public static createUser(req: Request, res: Response): void {
         let quaverId: number = parseInt(req.params.id);
         ResponseHandler.handle(EntityModel.createNewUser(quaverId), res);

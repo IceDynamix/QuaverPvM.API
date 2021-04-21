@@ -5,10 +5,7 @@ import Requester from "../requester/requester";
 
 export default class LoginController {
     public static login(req: Request, res: Response) {
-        // TODO: Figure out a better way
-        const notLoggedIn: boolean = (req.session as any).passport === undefined;
-        if (notLoggedIn) {
-            console.log(req.user);
+        if (!req.user) {
             return res.redirect(`${config.quaverBaseUrl}/oauth2/authorize?redirect_url=${config.selfUrl}/verify`);
         } else {
             return res.redirect("/");
@@ -32,7 +29,7 @@ export default class LoginController {
             let pvmUser: any = await EntityModel.findOne({ entityType: "user", quaverId: quaverUser.id }).exec();
             if (!pvmUser) await EntityModel.createNewUser(quaverUser.id);
 
-            req.login(pvmUser, function () {});
+            req.login(pvmUser, function() {});
             res.end();
             return res.redirect("/");
         } catch (err) {

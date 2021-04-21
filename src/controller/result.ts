@@ -11,15 +11,27 @@ export default class ResultController {
         else if (entity) method = ResultModel.findEntityResults(entity.toString());
         else method = ResultModel.find({});
 
-        if (populate) ResponseHandler.handle(method.populate("entity1").populate("entity2").exec(), res);
+        if (populate)
+            ResponseHandler.handle(
+                method
+                    .populate("entity1")
+                    .populate("entity2")
+                    .exec(),
+                res
+            );
         else ResponseHandler.handle(method.exec(), res);
     }
 
-    public static createResult(req: Request, res: Response): void {
-        const { entity1, entity2, result }: { entity1: string; entity2: string; result: boolean } = req.body;
+    public static POST(req: Request, res: Response): void {
+        if (!req.user) {
+            res.status(401).json({ message: "Not logged in" });
+            return;
+        }
 
-        if (!entity1 || !entity2) {
-            res.status(500).json({ message: "An entity field was not set" });
+        const entity1 = (req.user as any)._id;
+        const { entity: entity2, result }: { entity: string; result: boolean } = req.body;
+        if (!entity2) {
+            res.status(500).json({ message: "Entity field was not set" });
             return;
         }
 

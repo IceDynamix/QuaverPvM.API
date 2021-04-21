@@ -41,9 +41,6 @@ class Server {
         app.use(express.json());
         app.use(cors());
 
-        app.use(passport.initialize());
-        app.use(passport.session());
-
         app.use(
             session({
                 secret: config.jwtSecret,
@@ -58,11 +55,14 @@ class Server {
             })
         );
 
-        passport.serializeUser(function (user: any, done) {
+        app.use(passport.initialize());
+        app.use(passport.session());
+
+        passport.serializeUser(function(user: any, done) {
             done(null, user._id);
         });
 
-        passport.deserializeUser(function (id, done) {
+        passport.deserializeUser(function(id, done) {
             EntityModel.findById(id)
                 .exec()
                 .then((user) => {
@@ -75,7 +75,7 @@ class Server {
         app.get("/login", LoginController.login);
         app.get("/logout", LoginController.logout);
         app.get("/verify", LoginController.verify);
-        app.get("/", function (req, res) {
+        app.get("/", function(req, res) {
             res.json(req.session);
         });
 
