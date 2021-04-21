@@ -10,8 +10,8 @@
     "calculatePeriod": "ts-node src/glicko.ts"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "IceDynamix",
+  "license": "MIT",
   "dependencies": {
     "@typegoose/typegoose": "^7.6.0",
     "axios": "^0.21.1",
