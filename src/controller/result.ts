@@ -1,39 +1,18 @@
 import { ResultModel } from "../models/result";
 import { Request, Response } from "express";
+import ResponseHandler from "./response";
 
 export default class ResultController {
-    public static allResults(req: Request, res: Response): void {
-        ResultModel.find({})
-            .populate("entity1")
-            .populate("entity2")
-            .exec()
-            .then((results) =>
-                res.status(200).json({
-                    count: results.length,
-                    results,
-                })
-            )
-            .catch((err) => res.status(500).json({ message: err.message, err }));
-    }
+    public static GET(req: Request, res: Response): void {
+        const { id, entity, populate } = req.query;
 
-    public static getResult(req: Request, res: Response): void {
-        ResultModel.findById(req.params.id)
-            .populate("entity1")
-            .populate("entity2")
-            .exec()
-            .then((result) => res.status(200).json(result))
-            .catch((err) => res.status(500).json({ message: err.message, err }));
-    }
+        let method;
+        if (id) method = ResultModel.find({ _id: id });
+        else if (entity) method = ResultModel.findEntityResults(entity.toString());
+        else method = ResultModel.find({});
 
-    public static getEntityResults(req: Request, res: Response): void {
-        ResultModel.getResultsContainingId(req.params.id)
-            .then((results) =>
-                res.status(200).json({
-                    count: results.length,
-                    results,
-                })
-            )
-            .catch((err) => res.status(500).json({ message: err.message, err }));
+        if (populate) ResponseHandler.handle(method.populate("entity1").populate("entity2").exec(), res);
+        else ResponseHandler.handle(method.exec(), res);
     }
 
     public static createResult(req: Request, res: Response): void {
@@ -44,8 +23,6 @@ export default class ResultController {
             return;
         }
 
-        ResultModel.createNewResult(entity1, entity2, result)
-            .then((result) => res.status(201).json(result))
-            .catch((err) => res.status(500).json({ message: err.message, err }));
+        ResponseHandler.handle(ResultModel.createNewResult(entity1, entity2, result), res, 201);
     }
 }

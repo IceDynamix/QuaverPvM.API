@@ -18,12 +18,9 @@ class Result {
     @prop({ default: false })
     public processed?: boolean;
 
-    public static async getResultsContainingId(id: string) {
+    public static findEntityResults(id: string) {
         const objId = new ObjectId(id);
-        return await ResultModel.find({ $or: [{ entity1: objId }, { entity2: objId }] })
-            .populate("entity1")
-            .populate("entity2")
-            .exec();
+        return ResultModel.find({ $or: [{ entity1: objId }, { entity2: objId }] });
     }
 
     public static async createNewResult(entity1Id: string, entity2Id: string, result: boolean): Promise<Result> {
