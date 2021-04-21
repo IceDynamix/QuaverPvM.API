@@ -1,10 +1,10 @@
-# QuaverPvM
+# QuaverPvM API
 
 ## API Documentation
 
 Base URL: `none yet lol`
 
-- [QuaverPvM](#quaverpvm)
+- [QuaverPvM API](#quaverpvm-api)
     - [API Documentation](#api-documentation)
         - [GET `/entities`](#get-entities)
             - [Query string parameters](#query-string-parameters)
