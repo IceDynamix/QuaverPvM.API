@@ -11,20 +11,20 @@ export default class EntityController {
         if (type) filter.entityType = type;
         if (qid) filter.quaverId = qid;
 
-        ResponseHandler.handle(EntityModel.find(filter).exec(), req, res);
+        ResponseHandler.handle(EntityModel.find(filter).exec(), res);
     }
 
     public static selfGET(req: Request, res: Response): void {
-        ResponseHandler.handle(new Promise((resolve) => resolve(req.user ?? null)), req, res, 200, true);
+        ResponseHandler.handle(new Promise((resolve) => resolve(req.user ?? null)), res, 200);
     }
 
     public static createUser(req: Request, res: Response): void {
         let quaverId: number = parseInt(req.params.id);
-        ResponseHandler.handle(EntityModel.createNewUser(quaverId), req, res);
+        ResponseHandler.handle(EntityModel.createNewUser(quaverId), res);
     }
 
     public static createMap(req: Request, res: Response): void {
         let quaverId: number = parseInt(req.params.id);
-        ResponseHandler.handle(EntityModel.createNewMap(quaverId), req, res);
+        ResponseHandler.handle(EntityModel.createNewMap(quaverId), res);
     }
 }

@@ -23,6 +23,8 @@ const app = express();
 
 const corsOptions = {
     origin: config.clientBaseUrl,
+    methods: ["GET", "POST"],
+    credentials: true,
 };
 
 class Server {
@@ -43,12 +45,6 @@ class Server {
 
             next();
         });
-
-        // Request body parsing
-        // app.use(cors(corsOptions));
-        app.use(cors());
-        app.use(express.urlencoded({ extended: true }));
-        app.use(express.json());
 
         app.use(
             session({
@@ -75,13 +71,20 @@ class Server {
                 .then((user) => done(null, user))
         );
 
+        app.use(cors(corsOptions));
+        app.use(express.urlencoded({ extended: true }));
+        app.use(express.json());
+
         // Routes
+
         app.get("/me", EntityController.selfGET);
         app.get("/entities", EntityController.GET);
 
         app.get("/match", MatchController.GET);
         app.post("/match", MatchController.POST);
-        app.get("/results", MatchController.results);
+
+        app.get("/results", MatchController.resultsGET);
+        app.post("/results", MatchController.resultsPOST);
 
         app.get("/datapoints", DatapointController.GET);
 

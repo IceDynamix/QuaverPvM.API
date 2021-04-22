@@ -38,11 +38,7 @@ class Match {
                     $or: [{ entity1: entity }, { entity2: entity }],
                 },
                 { ongoing: true },
-                {
-                    createdAt: {
-                        $gt: timeoutStart,
-                    },
-                },
+                { createdAt: { $gt: timeoutStart } },
             ],
         });
     }
@@ -70,8 +66,6 @@ class Match {
             opponent = opponents[Math.floor(opponents.length * Math.random())];
         }
 
-        console.log("new match made");
-
         return await MatchModel.create({ entity1: entity, entity2: opponent, result: false });
     }
 
@@ -84,7 +78,7 @@ class Match {
 
         // run async
         MatchModel.find({ processed: false })
-            .count()
+            .countDocuments()
             .exec()
             .then((count) => {
                 if (count >= maxQueueSize) Glicko.updateAll(true);

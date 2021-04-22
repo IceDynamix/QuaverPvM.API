@@ -8,8 +8,6 @@ import { DatapointModel } from "../models/datapoint";
 
 const NAMESPACE = "GLICKO";
 
-Database.connect();
-
 export default class Glicko {
     public static async updateAll(save: boolean = false) {
         let timestamp = new Date();
