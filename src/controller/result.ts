@@ -12,23 +12,13 @@ export default class ResultController {
         else if (entity) method = ResultModel.findEntityResults(entity.toString());
         else method = ResultModel.find({});
 
-        if (populate)
-            ResponseHandler.handle(
-                method
-                    .populate("entity1")
-                    .populate("entity2")
-                    .exec(),
-                res
-            );
-        else ResponseHandler.handle(method.exec(), res);
+        if (populate) ResponseHandler.handle(method.populate("entity1").populate("entity2").exec(), req, res);
+        else ResponseHandler.handle(method.exec(), req, res);
     }
 
     public static POST(req: Request, res: Response): void {
-        res.header("Access-Control-Expose-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+        // Only allow results via client
         res.header("Access-Control-Allow-Origin", config.clientBaseUrl);
-        res.header("Access-Control-Allow-Credentials", "true");
-        res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE");
-        res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
         if (!req.user) {
             res.status(401).json({ message: "Not logged in" });
             return;
@@ -41,6 +31,6 @@ export default class ResultController {
             return;
         }
 
-        ResponseHandler.handle(ResultModel.createNewResult(entity1, entity2, result), res, 201);
+        ResponseHandler.handle(ResultModel.createNewResult(entity1, entity2, result), req, res, 201);
     }
 }

@@ -15,7 +15,7 @@ export default class DatapointController {
             if (after) filter.timestamp.$gt = after;
         }
 
-        if (populate == "true") ResponseHandler.handle(DatapointModel.find(filter).populate("entity").exec(), res);
-        else ResponseHandler.handle(DatapointModel.find(filter).exec(), res);
+        if (populate == "true") ResponseHandler.handle(DatapointModel.find(filter).populate("entity").exec(), req, res);
+        else ResponseHandler.handle(DatapointModel.find(filter).exec(), req, res);
     }
 }

@@ -12,26 +12,20 @@ export default class EntityController {
         if (type) filter.entityType = type;
         if (qid) filter.quaverId = qid;
 
-        ResponseHandler.handle(EntityModel.find(filter).exec(), res);
+        ResponseHandler.handle(EntityModel.find(filter).exec(), req, res);
     }
 
     public static selfGET(req: Request, res: Response): void {
-        res.header("Access-Control-Expose-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-        res.header("Access-Control-Allow-Origin", config.clientBaseUrl);
-        res.header("Access-Control-Allow-Credentials", "true");
-        res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE");
-        res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-        if (!req.user) res.status(200).json(null);
-        else res.status(200).json(req.user);
+        ResponseHandler.handle(new Promise((resolve) => resolve(req.user ?? null)), req, res, 200, true);
     }
 
     public static createUser(req: Request, res: Response): void {
         let quaverId: number = parseInt(req.params.id);
-        ResponseHandler.handle(EntityModel.createNewUser(quaverId), res);
+        ResponseHandler.handle(EntityModel.createNewUser(quaverId), req, res);
     }
 
     public static createMap(req: Request, res: Response): void {
         let quaverId: number = parseInt(req.params.id);
-        ResponseHandler.handle(EntityModel.createNewMap(quaverId), res);
+        ResponseHandler.handle(EntityModel.createNewMap(quaverId), req, res);
     }
 }
