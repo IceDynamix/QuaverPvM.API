@@ -1,20 +1,29 @@
 import { Player, Rating, MatchResult, Period } from "go-glicko";
-import { EntityModel } from "./models/entity";
-import { ResultModel } from "./models/result";
-import logging from "./config/logging";
-import Database from "./config/database";
-import config from "./config/config";
-import { DatapointModel } from "./models/datapoint";
+import { EntityModel } from "../models/entity";
+import { MatchModel, matchTimeout } from "../models/match";
+import logging from "../config/logging";
+import Database from "../config/database";
+import config from "../config/config";
+import { DatapointModel } from "../models/datapoint";
 
 const NAMESPACE = "GLICKO";
 
 Database.connect();
 
-class Glicko {
+export default class Glicko {
     public static async updateAll(save: boolean = false) {
         let timestamp = new Date();
+        const timeoutStart = new Date(timestamp.getTime() - matchTimeout);
+
+        let results = await MatchModel.find({
+            processed: false,
+            $or: [
+                { ongoing: false }, // user submitted a result
+                { createdAt: { $lt: timeoutStart } }, // user didn't submit a result
+            ],
+        }).exec();
+
         let entities = await EntityModel.find().exec();
-        let results = await ResultModel.find({ processed: false }).exec();
         let glickoPlayers: { [key: string]: Player } = {};
 
         entities.forEach((entity) => {
@@ -53,10 +62,10 @@ class Glicko {
             );
             if (save) {
                 entity.rating = player.Rating().R();
-                entity.rd = player.Rating().RD();
+                entity.rd = Math.min(player.Rating().RD(), 350); // Limit to max 350
                 entity.volatility = player.Rating().Sigma();
                 entity.save();
-                await DatapointModel.createNewDatapoint(entity._id, timestamp, entity.rating, entity.rd, entity.volatility);
+                await DatapointModel.createNewDatapoint(timestamp, entity);
             }
         }
 
@@ -72,5 +81,3 @@ class Glicko {
         }
     }
 }
-
-Glicko.updateAll(true);

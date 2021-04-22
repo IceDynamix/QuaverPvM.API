@@ -14,8 +14,9 @@ import cors from "cors";
 import config from "./config/config";
 import logging from "./config/logging";
 import EntityController from "./controller/entity";
-import ResultController from "./controller/result";
+import MatchController from "./controller/match";
 import DatapointController from "./controller/datapoint";
+import { MatchModel } from "./models/match";
 
 const NAMESPACE = "Server";
 const app = express();
@@ -66,27 +67,28 @@ class Server {
         app.use(passport.initialize());
         app.use(passport.session());
 
-        passport.serializeUser(function(user: any, done) {
-            done(null, user._id);
-        });
+        passport.serializeUser((user: any, done) => done(null, user._id));
 
-        passport.deserializeUser(function(id, done) {
+        passport.deserializeUser((id, done) =>
             EntityModel.findById(id)
                 .exec()
-                .then((user) => {
-                    done(null, user);
-                });
-        });
+                .then((user) => done(null, user))
+        );
 
         // Routes
-        app.get("/entities", EntityController.GET);
         app.get("/me", EntityController.selfGET);
-        app.get("/results", ResultController.GET);
-        app.post("/results", ResultController.POST);
+        app.get("/entities", EntityController.GET);
+
+        app.get("/match", MatchController.GET);
+        app.post("/match", MatchController.POST);
+        app.get("/results", MatchController.results);
+
         app.get("/datapoints", DatapointController.GET);
+
         app.get("/login", LoginController.login);
         app.get("/logout", LoginController.logout);
         app.get("/verify", LoginController.verify);
+
         app.get("/", (req: Request, res: Response) => res.json({ message: "Welcome to the QuaverPvM API!" }));
 
         app.get("*", (req: Request, res: Response) => res.status(404).json({ message: "Not found" }));

@@ -2,6 +2,7 @@ import { Rating } from "go-glicko";
 import { getModelForClass, modelOptions, mongoose, prop, Severity } from "@typegoose/typegoose";
 import config from "../config/config";
 import Requester from "../requester/requester";
+import { MatchModel } from "./match";
 
 const defaultRating: Rating = Rating.NewDefaultRating();
 
@@ -12,6 +13,9 @@ type EntityType = "map" | "user";
     options: { allowMixed: Severity.ALLOW },
 })
 class Entity {
+    @prop()
+    public _id!: mongoose.Types.ObjectId;
+
     @prop()
     public quaverId?: number;
 
@@ -113,7 +117,7 @@ class Entity {
     static createIdFilter(entityType: EntityType, input: string | number): mongoose.FilterQuery<Entity> {
         const quaverId = parseInt(input.toString());
         if (input) return { entityType, quaverId };
-        else if (mongoose.Types.ObjectId.isValid(input)) return { entityType, _id: input };
+        else if (mongoose.Types.ObjectId.isValid(input)) return { entityType, id: input };
         else throw "Provided ID was not valid";
     }
 }

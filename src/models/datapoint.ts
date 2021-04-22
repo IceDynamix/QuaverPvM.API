@@ -1,5 +1,6 @@
-import { getModelForClass, prop, Ref } from "@typegoose/typegoose";
+import { getModelForClass, mongoose, prop, Ref } from "@typegoose/typegoose";
 import { Entity } from "./entity";
+import { MatchModel } from "./match";
 
 class Datapoint {
     @prop({ ref: Entity })
@@ -8,17 +9,34 @@ class Datapoint {
     @prop({ default: new Date() })
     public timestamp!: Date;
 
-    @prop()
+    @prop({ default: 1500 })
     public rating!: number;
 
-    @prop()
+    @prop({ default: 350 })
     public rd!: number;
 
-    @prop()
+    @prop({ default: 0.06 })
     public volatility!: number;
 
-    public static async createNewDatapoint(entityId: string, timestamp: Date, rating: number, rd: number, volatility: number) {
-        return await DatapointModel.create({ entity: entityId, timestamp, rating, rd, volatility });
+    @prop({ default: 0 })
+    public wins!: number;
+
+    @prop({ default: 0 })
+    public matches!: number;
+
+    public static async createNewDatapoint(timestamp: Date, entity: Entity) {
+        const results = await MatchModel.findEntityResults(entity._id).exec();
+        const wins = results.filter((r) => (r.entity1 == entity._id && r.result) || (r.entity1 != entity._id && !r.result));
+
+        return await DatapointModel.create({
+            entity,
+            timestamp,
+            rating: entity.rating!,
+            rd: entity.rd!,
+            volatility: entity.volatility!,
+            matches: results.length,
+            wins: wins.length,
+        });
     }
 }
 

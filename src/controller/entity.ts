@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import config from "../config/config";
 import { EntityModel } from "../models/entity";
 import ResponseHandler from "./response";
 
