@@ -4,8 +4,6 @@ import config from "../config/config";
 import Requester from "../requester/requester";
 import { MatchModel } from "./match";
 
-const defaultRating: Rating = Rating.NewDefaultRating();
-
 type EntityType = "map" | "user";
 
 @modelOptions({
@@ -22,13 +20,13 @@ class Entity {
     @prop()
     public info?: object; // Quaver user.info or map
 
-    @prop({ default: defaultRating.R() })
+    @prop({ default: 1500 })
     public rating?: number;
 
-    @prop({ default: defaultRating.RD() })
+    @prop({ default: 200 })
     public rd?: number;
 
-    @prop({ default: defaultRating.Sigma() })
+    @prop({ default: 0.06 })
     public volatility?: number;
 
     // https://www.smogon.com/forums/threads/gxe-glixare-a-much-better-way-of-estimating-a-players-overall-rating-than-shoddys-cre.51169/
@@ -85,7 +83,13 @@ class Entity {
         else {
             let quaverUser = await Entity.fetchQuaverUser(quaverId, 1);
             if (!quaverUser) throw "Quaver user does not exist";
-            return await EntityModel.create({ quaverId, entityType: "user" });
+
+            // Apply rating scaling roughly depending on skill
+            const diff = quaverUser.keys4.stats.overall_performance_rating;
+            // 0 QR = 500, 800 QR = 2500
+            const initialRating = (diff / 800) * 2000 + 500;
+
+            return await EntityModel.create({ quaverId, entityType: "user", rating: initialRating });
         }
     }
 
@@ -95,7 +99,13 @@ class Entity {
         else {
             let quaverMap = await Entity.fetchQuaverMap(quaverId);
             if (!quaverMap) throw "Quaver map does not exist";
-            return await EntityModel.create({ quaverId, entityType: "map" });
+
+            // Apply rating scaling roughly depending on difficulty
+            // 0 QR = 500, 40 QR = 2500
+            const diff = quaverMap.difficulty_rating;
+            const initialRating = (diff / 40) * 2000 + 500;
+
+            return await EntityModel.create({ quaverId, entityType: "map", rating: initialRating });
         }
     }
 

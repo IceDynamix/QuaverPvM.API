@@ -1,7 +1,7 @@
 import { MatchModel } from "../models/match";
 import { Request, Response } from "express";
 import ResponseHandler from "./response";
-import { Entity } from "../models/entity";
+import { Entity, EntityModel } from "../models/entity";
 
 export default class MatchController {
     public static async GET(req: Request, res: Response) {
@@ -25,13 +25,21 @@ export default class MatchController {
         else ResponseHandler.handle(MatchModel.matchmaker(user), res);
     }
 
-    public static resultsGET(req: Request, res: Response): void {
+    public static async resultsGET(req: Request, res: Response) {
         const { id, entity } = req.query;
 
         let method;
         if (id) method = MatchModel.find({ _id: id });
-        else if (entity) method = MatchModel.findEntityResults(entity.toString());
-        else method = MatchModel.find({});
+        else if (entity) {
+            let entityObj = await EntityModel.findById(entity).exec();
+            if (!entityObj) {
+                ResponseHandler.handle(new Promise((resolve, reject) => resolve([])), res);
+                return;
+            } else {
+                let ongoing = await MatchModel.findOngoingMatch(entityObj);
+                method = MatchModel.findEntityResults(entityObj, ongoing);
+            }
+        } else method = MatchModel.find({});
 
         ResponseHandler.handle(method.populate("entity1").populate("entity2").exec(), res);
     }

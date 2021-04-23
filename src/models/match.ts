@@ -1,6 +1,5 @@
 import { getModelForClass, modelOptions, prop, Ref } from "@typegoose/typegoose";
 import { Entity, EntityModel, EntityType } from "./entity";
-import { ObjectId } from "mongodb";
 import Glicko from "../glicko/glicko";
 import Requester from "../requester/requester";
 import config from "../config/config";
@@ -8,7 +7,6 @@ import config from "../config/config";
 const matchTimeout: number = 15 * 60 * 1000; // 15min
 const blacklistPastN: number = 10;
 const rdWindowFactor: number = 0.5;
-const maxQueueSize: number = 15; // Recalculate Glicko after n total games
 
 const modsAreInvalid = (mods: string) => {
     for (const mod of mods.split(", ")) {
@@ -17,7 +15,7 @@ const modsAreInvalid = (mods: string) => {
             let rate = parseFloat(rateModMatch[0]);
             if (rate < 1) return true;
         } else {
-            if (mod != "Mirror") return true;
+            if (!["Mirror", "None"].includes(mod)) return true;
         }
     }
     return false;
@@ -40,9 +38,9 @@ class Match {
     @prop({ default: false })
     public processed?: boolean; // Was used to update player ratings
 
-    public static findEntityResults(entityId: string | ObjectId) {
-        if (typeof entityId === "string") entityId = new ObjectId(entityId);
-        return MatchModel.find({ $or: [{ entity1: entityId }, { entity2: entityId }], ongoing: false });
+    public static findEntityResults(entity: Entity, ongoing: Match | null = null) {
+        if (ongoing) return MatchModel.find({ $or: [{ entity1: entity }, { entity2: entity }], _id: { $ne: ongoing } });
+        else return MatchModel.find({ $or: [{ entity1: entity }, { entity2: entity }] });
     }
 
     public static findOngoingMatch(entity: Entity) {
@@ -58,10 +56,10 @@ class Match {
         });
     }
 
-    public static async matchmaker(entity: any) {
-        let pastMatches = await Match.findEntityResults(entity._id).exec();
+    public static async matchmaker(entity: Entity) {
+        let pastMatches = await Match.findEntityResults(entity).exec();
         let playedOpponents = pastMatches
-            .sort((a: any, b: any) => a.createdAt - b.createdAt)
+            .sort((a: any, b: any) => b.createdAt - a.createdAt)
             .map((r) => r.entity2)
             .slice(0, blacklistPastN);
 
