@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
 import config from "../config/config";
+import logging from "../config/logging";
+
+const NAMESPACE = "Response";
 
 export default class ResponseHandler {
     public static async handle(promise: Promise<Array<any> | any>, res: Response, status: number = 200) {
@@ -17,6 +20,7 @@ export default class ResponseHandler {
     }
 
     static handleError(err: Error, res: Response) {
+        logging.error(NAMESPACE, err.message, err);
         res.status(500).json({ message: err.message, err });
     }
 }

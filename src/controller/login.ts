@@ -29,9 +29,10 @@ export default class LoginController {
             let pvmUser: any = await EntityModel.findOne({ entityType: "user", quaverId: quaverUser.id }).exec();
             if (!pvmUser) await EntityModel.createNewUser(quaverUser.id);
 
-            req.login(pvmUser, function() {});
-            res.end();
-            return res.redirect(config.clientBaseUrl);
+            req.login(pvmUser, function () {
+                res.end();
+                res.redirect(config.clientBaseUrl);
+            });
         } catch (err) {
             res.status(500).json({ message: err.message, err });
         }

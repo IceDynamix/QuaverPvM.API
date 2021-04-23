@@ -14,9 +14,6 @@ type EntityType = "map" | "user";
 })
 class Entity {
     @prop()
-    public _id!: mongoose.Types.ObjectId;
-
-    @prop()
     public quaverId?: number;
 
     @prop()
@@ -88,7 +85,7 @@ class Entity {
         else {
             let quaverUser = await Entity.fetchQuaverUser(quaverId, 1);
             if (!quaverUser) throw "Quaver user does not exist";
-            return await EntityModel.create({ quaverId, entityType: "user", info: quaverUser.info });
+            return await EntityModel.create({ quaverId, entityType: "user" });
         }
     }
 
@@ -98,7 +95,7 @@ class Entity {
         else {
             let quaverMap = await Entity.fetchQuaverMap(quaverId);
             if (!quaverMap) throw "Quaver map does not exist";
-            return await EntityModel.create({ quaverId, entityType: "map", info: quaverMap.info });
+            return await EntityModel.create({ quaverId, entityType: "map" });
         }
     }
 

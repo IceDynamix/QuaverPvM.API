@@ -24,7 +24,7 @@ class Datapoint {
     @prop({ default: 0 })
     public matches!: number;
 
-    public static async createNewDatapoint(timestamp: Date, entity: Entity) {
+    public static async createNewDatapoint(timestamp: Date, entity: any) {
         const results = await MatchModel.findEntityResults(entity._id).exec();
         const wins = results.filter((r) => (r.entity1 == entity._id && r.result) || (r.entity1 != entity._id && !r.result));
 
