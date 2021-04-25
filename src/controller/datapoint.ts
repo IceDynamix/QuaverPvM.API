@@ -1,21 +1,20 @@
 import { Request, Response } from "express";
-import { DatapointModel } from "../models/datapoint";
+import { EntityDatapointModel, GeneralDatapointModel } from "../models/datapoint";
 import ResponseHandler from "./response";
 
 export default class DatapointController {
-    public static GET(req: Request, res: Response) {
-        const { id, entity, before, after, populate } = req.query;
+    public static async entitySingleGET(req: Request, res: Response) {
+        const id = req.params.id;
+        const results = await EntityDatapointModel.find({ entity: id }).sort({ timestamp: -1 }).exec();
+        ResponseHandler.handle(new Promise((resolve, reject) => resolve(results.length > 0 ? results[0] : null)), res);
+    }
 
-        let filter: any = {};
-        if (id) filter._id = id;
-        if (entity) filter.entity = entity;
-        if (before || after) {
-            filter.timestamp = {};
-            if (before) filter.timestamp.$lt = before;
-            if (after) filter.timestamp.$gt = after;
-        }
+    public static entityFullGET(req: Request, res: Response) {
+        const id = req.params.id;
+        ResponseHandler.handle(EntityDatapointModel.find({ entity: id }).sort({ timestamp: -1 }).exec(), res);
+    }
 
-        if (populate == "true") ResponseHandler.handle(DatapointModel.find(filter).populate("entity").exec(), res);
-        else ResponseHandler.handle(DatapointModel.find(filter).exec(), res);
+    public static generalGET(req: Request, res: Response) {
+        ResponseHandler.handle(GeneralDatapointModel.find({}).sort({ timestamp: -1 }).exec(), res);
     }
 }

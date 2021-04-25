@@ -1,10 +1,11 @@
 import { getModelForClass, modelOptions, prop, Ref } from "@typegoose/typegoose";
-import { Entity, EntityModel, EntityType } from "./entity";
+import { Entity } from "./entity";
 import Glicko from "../glicko/glicko";
 import Requester from "../requester/requester";
 import config from "../config/config";
+import { EntityDatapointModel } from "./datapoint";
 
-const matchTimeout: number = 15 * 60 * 1000; // 15min
+const matchTimeout: number = 10 * 60 * 1000;
 const blacklistPastN: number = 10;
 const rdWindowFactor: number = 0.5;
 
@@ -21,88 +22,87 @@ const modsAreInvalid = (mods: string) => {
     return false;
 };
 
-@modelOptions({ schemaOptions: { timestamps: true } })
+@modelOptions({
+    schemaOptions: { toObject: { getters: true }, toJSON: { virtuals: true } },
+})
 class Match {
-    @prop({ ref: Entity })
-    public entity1: Ref<Entity>;
+    @prop({ ref: "Entity" }) public user!: Ref<Entity>; // No idea why it doesn't work without using a string
+    @prop({ ref: "Entity" }) public map!: Ref<Entity>;
+    @prop({ default: false }) public result!: boolean | null; // from the perspective of entity1, null = ongoing
+    @prop({ default: false }) public processed?: boolean; // Was used to update player ratings
+    @prop({ default: new Date() }) public createdAt!: Date;
+    @prop() public endsAt!: Date;
 
-    @prop({ ref: Entity })
-    public entity2: Ref<Entity>;
-
-    @prop({ default: false })
-    public result!: boolean; // from the perspective of entity1
-
-    @prop({ default: true })
-    public ongoing?: boolean;
-
-    @prop({ default: false })
-    public processed?: boolean; // Was used to update player ratings
+    get submissable() {
+        return new Date() < this.endsAt;
+    }
 
     public static findEntityResults(entity: Entity, ongoing: Match | null = null) {
-        if (ongoing) return MatchModel.find({ $or: [{ entity1: entity }, { entity2: entity }], _id: { $ne: ongoing } });
-        else return MatchModel.find({ $or: [{ entity1: entity }, { entity2: entity }] });
+        if (ongoing)
+            return MatchModel.find({ $or: [{ user: entity }, { map: entity }], _id: { $ne: ongoing } })
+                .populate("user")
+                .populate("map");
+        else
+            return MatchModel.find({ $or: [{ user: entity }, { map: entity }] })
+                .populate("user")
+                .populate("map");
     }
 
-    public static findOngoingMatch(entity: Entity) {
-        const timeoutStart = new Date(new Date().getTime() - matchTimeout);
-        return MatchModel.findOne({
-            $and: [
-                {
-                    $or: [{ entity1: entity }, { entity2: entity }],
-                },
-                { ongoing: true },
-                { createdAt: { $gt: timeoutStart } },
-            ],
-        });
+    public static async findOngoingMatch(entity: Entity) {
+        let result = await MatchModel.findOne({
+            $and: [{ $or: [{ user: entity }, { map: entity }] }, { result: null }],
+        })
+            .populate("user")
+            .populate("map")
+            .exec();
+
+        if (result?.submissable) return result;
+        return null;
     }
 
-    public static async matchmaker(entity: Entity) {
-        let pastMatches = await Match.findEntityResults(entity).exec();
+    public static async matchmaker(user: Entity) {
+        let userStats = await EntityDatapointModel.getCurrentEntityDatapoint(user);
+
+        let pastMatches = await Match.findEntityResults(user).exec();
         let playedOpponents = pastMatches
             .sort((a: any, b: any) => b.createdAt - a.createdAt)
-            .map((r) => r.entity2)
+            .map((r) => r.map)
             .slice(0, blacklistPastN);
 
-        let opponents = await EntityModel.find({ entityType: "map", _id: { $nin: playedOpponents } }).exec();
-        opponents = opponents.filter((opp) => {
-            return (
-                entity.rating! < opp.rating! + rdWindowFactor * opp.rd! && entity.rating! > opp.rating! - rdWindowFactor * opp.rd!
-            );
+        let mapStats = await EntityDatapointModel.getAllCurrentDatapoints({ entityType: "map", _id: { $nin: playedOpponents } });
+
+        mapStats = mapStats.filter((mapStats) => {
+            const upperBound = mapStats.rating + rdWindowFactor * mapStats.rd;
+            const lowerBound = mapStats.rating - rdWindowFactor * mapStats.rd;
+            return userStats.rating! < upperBound && userStats.rating! > lowerBound;
         });
 
-        let opponent;
-        if (opponents.length == 0) {
-            let allOpponents = await EntityModel.find({ entityType: "map" }).exec();
-            if (allOpponents.length == 0) throw "No maps added to database";
-            let sorted = allOpponents.sort((a, b) => a.rating! - b.rating!);
-            opponent = entity.rating! > 1500 ? sorted[sorted.length - 1] : sorted[0];
-        } else {
-            opponent = opponents[Math.floor(opponents.length * Math.random())];
-        }
-
-        return await MatchModel.create({ entity1: entity, entity2: opponent, result: false });
+        if (mapStats.length == 0) throw "No maps in rating range";
+        let map: Entity = mapStats[Math.floor(mapStats.length * Math.random())].entity as Entity;
+        let createdAt = new Date();
+        let endsAt = new Date(createdAt.getTime() + matchTimeout);
+        return await MatchModel.create({ user, map, result: null, createdAt, endsAt });
     }
 
-    public static async scanRecentPlays(entity: any) {
-        let ongoingMatch = await Match.findOngoingMatch(entity).populate("entity1").populate("entity2").exec();
+    static async scanRecentPlays(entity: any) {
+        let ongoingMatch = await Match.findOngoingMatch(entity);
         if (ongoingMatch == null) throw "No match ongoing";
 
-        let opponent: any = ongoingMatch.entity2;
-
+        let opponent: any = ongoingMatch.map;
         let plays = await MatchModel.fetchQuaverUserRecent(entity.quaverId!);
 
-        let recentPlays = plays.filter((play: any) => new Date(play.time) > (ongoingMatch as any).createdAt!);
+        let recentPlays = plays.filter((play: any) => new Date(play.time) > ongoingMatch!.createdAt);
         if (recentPlays.length == 0)
             return {
                 success: false,
-                message: "No recent plays made after matching were found",
+                message: "No recent plays found",
             };
 
         let mapPlays = recentPlays.filter((play: any) => play.map.id == opponent.quaverId);
         if (mapPlays.length == 0)
             return {
                 success: false,
-                message: "Found recent plays, but none match the correct map",
+                message: `Found recent ${recentPlays.length} play(s), but none match the correct map`,
                 plays: recentPlays,
             };
 
@@ -110,7 +110,7 @@ class Match {
         if (validModPlays.length == 0)
             return {
                 success: false,
-                message: "Found recent plays on map, but invalid mods were used. All maps must be played on 1.0x or higher.",
+                message: `Found recent plays on map, but invalid mods were used. (${mapPlays[0].mods_string})`,
                 plays: mapPlays,
             };
 
@@ -120,34 +120,38 @@ class Match {
         if (validPlays.length == 0)
             return {
                 success: false,
-                message: "Found recent plays on map, but required grade was not reached. Submit loss?",
+                message: `Found recent play on map, but required grade was not reached. (Acc: ${validModPlays[0].accuracy.toFixed(
+                    2
+                )}%)`,
                 plays: validModPlays,
             };
 
-        return { success: true, plays: validPlays };
+        return { success: true, message: `Submitted ${validPlays[0].accuracy.toFixed(2)}% score as a win`, plays: validPlays };
+        return { success: true, message: "bypassed" };
     }
 
     public static async submitMatch(entity: Entity, resign: boolean = false) {
-        let ongoingMatch = await Match.findOngoingMatch(entity).populate("entity1").populate("entity2").exec();
-        if (ongoingMatch == null) throw "No match ongoing";
+        let ongoingMatch = await Match.findOngoingMatch(entity);
+        if (ongoingMatch == null)
+            return new Promise((resolve, reject) => resolve({ success: false, message: "No match ongoing" }));
 
         let response: any;
 
         if (resign) {
-            ongoingMatch.ongoing = false;
+            ongoingMatch.result = false;
             ongoingMatch.save();
+            EntityDatapointModel.pushResult(entity, false);
             response = { success: true, message: "Successfully submitted a loss" };
         } else {
             response = await MatchModel.scanRecentPlays(entity);
             if (response.success) {
                 ongoingMatch.result = true;
-                ongoingMatch.ongoing = false;
                 ongoingMatch.save();
+                await EntityDatapointModel.pushResult(entity, true);
             }
         }
 
-        Glicko.updateAll(true);
-
+        if (response.success) await Glicko.updateAll();
         return new Promise((resolve, reject) => resolve(response));
     }
 
@@ -160,4 +164,4 @@ class Match {
 
 const MatchModel = getModelForClass<typeof Match>(Match);
 
-export { MatchModel, matchTimeout };
+export { MatchModel, Match };

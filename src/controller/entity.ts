@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { EntityModel } from "../models/entity";
+import { Entity, EntityModel } from "../models/entity";
 import ResponseHandler from "./response";
 
 export default class EntityController {
@@ -18,13 +18,8 @@ export default class EntityController {
         ResponseHandler.handle(new Promise((resolve) => resolve(req.user ?? null)), res, 200);
     }
 
-    public static createUser(req: Request, res: Response): void {
-        let quaverId: number = parseInt(req.params.id);
-        ResponseHandler.handle(EntityModel.createNewUser(quaverId), res);
-    }
-
-    public static createMap(req: Request, res: Response): void {
-        let quaverId: number = parseInt(req.params.id);
-        ResponseHandler.handle(EntityModel.createNewMap(quaverId), res);
+    public static connect(req: Request, res: Response): void {
+        let quaverId: number = parseInt(req.body.id);
+        ResponseHandler.handle(EntityModel.connectUserToQuaver(req.user as Entity, quaverId), res);
     }
 }

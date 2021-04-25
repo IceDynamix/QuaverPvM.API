@@ -8,7 +8,6 @@ import { Request, Response } from "express";
 import passport from "passport";
 import session from "express-session";
 import MongoStore from "connect-mongo";
-import LoginController from "./controller/login";
 import cors from "cors";
 
 import config from "./config/config";
@@ -16,9 +15,14 @@ import logging from "./config/logging";
 import EntityController from "./controller/entity";
 import MatchController from "./controller/match";
 import DatapointController from "./controller/datapoint";
-import { MatchModel } from "./models/match";
 
-const NAMESPACE = "Server";
+import { midnightJob } from "./config/cron";
+import { EntityDatapointModel } from "./models/datapoint";
+import axios from "axios";
+
+const OAuth2Strategy = require("passport-oauth2").Strategy;
+// const SteamStrategy = require("passport-steam").Strategy;
+
 const app = express();
 
 const corsOptions = {
@@ -27,20 +31,55 @@ const corsOptions = {
     credentials: true,
 };
 
+passport.serializeUser((user: any, done) => done(null, user._id));
+
+passport.deserializeUser((id, done) =>
+    EntityModel.findById(id)
+        .exec()
+        .then((user) => done(null, user))
+);
+
+passport.use(
+    new OAuth2Strategy(
+        {
+            authorizationURL: config.quaverBaseUrl + "/oauth2/authorize",
+            tokenURL: config.quaverBaseUrl + "/oauth2/token",
+            clientID: config.quaverOauthClient,
+            clientSecret: config.quaverOauthSecret,
+            callbackURL: config.selfUrl + "/auth/quaver/callback",
+        },
+        async function (accessToken, refreshToken, profile, done) {
+            try {
+                let options = { headers: { Authorization: "Bearer " + config.quaverOauthSecret } };
+                let response = await axios.post(config.quaverBaseUrl + `/oauth2/me`, { code: accessToken }, options);
+                let quaverId = response.data.user.id;
+
+                let existing = await EntityModel.findOne({ quaverId });
+                if (existing) return done(null, existing);
+
+                let newUser = await EntityModel.create({ quaverId, entityType: "user" });
+                await EntityDatapointModel.createFreshDatapoint(newUser);
+                done(null, newUser);
+            } catch (err) {
+                done(err);
+            }
+        }
+    )
+);
+
 class Server {
     constructor() {
         // Connect to Mongo
         Database.connect();
 
+        midnightJob.start();
+
         // Request logging
         app.use((req, res, next) => {
-            logging.info(NAMESPACE, `[${req.method}] '${req.url}' - IP: [${req.socket.remoteAddress}]`);
+            logging.info(`[${req.method}] '${req.url}' - IP: [${req.socket.remoteAddress}]`);
 
             res.on("finish", () => {
-                logging.info(
-                    NAMESPACE,
-                    `[${req.method}] '${req.url}' - STATUS: [${res.statusCode}] - IP: [${req.socket.remoteAddress}]`
-                );
+                logging.info(`[${req.method}] '${req.url}' - STATUS: [${res.statusCode}] - IP: [${req.socket.remoteAddress}]`);
             });
 
             next();
@@ -63,14 +102,6 @@ class Server {
         app.use(passport.initialize());
         app.use(passport.session());
 
-        passport.serializeUser((user: any, done) => done(null, user._id));
-
-        passport.deserializeUser((id, done) =>
-            EntityModel.findById(id)
-                .exec()
-                .then((user) => done(null, user))
-        );
-
         app.use(cors(corsOptions));
         app.use(express.urlencoded({ extended: true }));
         app.use(express.json());
@@ -79,6 +110,7 @@ class Server {
 
         app.get("/me", EntityController.selfGET);
         app.get("/entities", EntityController.GET);
+        app.post("/connect", passport.authenticate("steam"), EntityController.connect);
 
         app.get("/match", MatchController.GET);
         app.post("/match", MatchController.POST);
@@ -86,17 +118,29 @@ class Server {
         app.get("/results", MatchController.resultsGET);
         app.post("/results", MatchController.resultsPOST);
 
-        app.get("/datapoints", DatapointController.GET);
+        app.get("/history", DatapointController.generalGET);
+        app.get("/entity/stats/:id", DatapointController.entitySingleGET);
+        app.get("/entity/history/:id", DatapointController.entityFullGET);
 
-        app.get("/login", LoginController.login);
-        app.get("/logout", LoginController.logout);
-        app.get("/verify", LoginController.verify);
+        app.get("/logout", (req: Request, res: Response) => {
+            req.logout();
+            return res.redirect(config.quaverBaseUrl);
+        });
+        // app.get("/auth/steam", passport.authenticate("steam"), (req, res) => {});
+        // app.get("/auth/steam/return", passport.authenticate("steam", { failureRedirect: "/login" }), function (req, res) {
+        //     res.redirect(config.quaverBaseUrl);
+        // });
 
-        app.get("/", (req: Request, res: Response) => res.json({ message: "Welcome to the QuaverPvM API!" }));
+        app.get("/auth/quaver", passport.authenticate("oauth2"), (req, res) => {});
+        app.get("/auth/quaver/callback", passport.authenticate("oauth2"), (req, res) => {
+            res.redirect(config.clientBaseUrl);
+        });
+
+        app.get("/", (req: Request, res: Response) => res.json(req.session));
 
         app.get("*", (req: Request, res: Response) => res.status(404).json({ message: "Not found" }));
 
-        app.listen(config.port, () => logging.info(NAMESPACE, `Server is running on port ${config.port}`));
+        app.listen(config.port, () => logging.info(`Server is running on port ${config.port}`));
     }
 }
 

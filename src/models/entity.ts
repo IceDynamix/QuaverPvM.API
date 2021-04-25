@@ -1,8 +1,7 @@
-import { Rating } from "go-glicko";
 import { getModelForClass, modelOptions, mongoose, prop, Severity } from "@typegoose/typegoose";
 import config from "../config/config";
 import Requester from "../requester/requester";
-import { MatchModel } from "./match";
+import { EntityDatapointModel, GeneralDatapointModel } from "./datapoint";
 
 type EntityType = "map" | "user";
 
@@ -11,85 +10,28 @@ type EntityType = "map" | "user";
     options: { allowMixed: Severity.ALLOW },
 })
 class Entity {
-    @prop()
-    public quaverId?: number;
+    @prop() public steamId?: string; // Used for user login, null for maps obviously
+    @prop() public entityType!: EntityType;
+    @prop() public quaverId?: number; // Have to figure that out from user input later for users
 
-    @prop()
-    public entityType!: EntityType;
+    public static async connectUserToQuaver(user: Entity, quaverId: number) {
+        if (user.quaverId) return { success: false, message: "User ID is already linked" };
 
-    @prop()
-    public info?: object; // Quaver user.info or map
+        // just convert it to mongoose doc to have it easy
+        let userDoc = await EntityModel.findOne({ steamId: user.steamId }).exec();
+        if (!userDoc) throw "what the hell";
 
-    @prop({ default: 1500 })
-    public rating?: number;
-
-    @prop({ default: 200 })
-    public rd?: number;
-
-    @prop({ default: 0.06 })
-    public volatility?: number;
-
-    // https://www.smogon.com/forums/threads/gxe-glixare-a-much-better-way-of-estimating-a-players-overall-rating-than-shoddys-cre.51169/
-    get glixare() {
-        if (!this.rating || !this.rd || this.rd > 100) return -1;
-        return (
-            1 /
-            (1 +
-                Math.pow(
-                    10,
-                    ((1500 - this.rating) * Math.PI) /
-                        Math.sqrt(
-                            3 * Math.LN10 * Math.LN10 * this.rd * this.rd +
-                                2500 * (64 * Math.PI * Math.PI + 147 * Math.LN10 * Math.LN10)
-                        )
-                ))
-        );
-    }
-
-    get letterRank(): string {
-        if (this.glixare === -1) return "z";
-        const percentile = 1 - this.glixare;
-        if (percentile < 0.01) return "x";
-        if (percentile < 0.05) return "u";
-        if (percentile < 0.11) return "ss";
-        if (percentile < 0.17) return "s+";
-        if (percentile < 0.23) return "s";
-        if (percentile < 0.3) return "s-";
-        if (percentile < 0.38) return "a+";
-        if (percentile < 0.46) return "a";
-        if (percentile < 0.54) return "a-";
-        if (percentile < 0.62) return "b+";
-        if (percentile < 0.7) return "b";
-        if (percentile < 0.78) return "b-";
-        if (percentile < 0.84) return "c+";
-        if (percentile < 0.9) return "c";
-        if (percentile < 0.95) return "c-";
-        if (percentile < 0.95) return "c-";
-        if (percentile < 0.975) return "d+";
-        return "d";
-    }
-
-    public static async findUser(id: number | string) {
-        return await EntityModel.findOne(Entity.createIdFilter("user", id)).exec();
-    }
-
-    public static async findMap(id: number | string) {
-        return await EntityModel.findOne(Entity.createIdFilter("map", id)).exec();
-    }
-
-    public static async createNewUser(quaverId: number): Promise<Entity> {
         const result = await EntityModel.findOne({ entityType: "user", quaverId }).exec();
-        if (result) throw "User already exists";
-        else {
-            let quaverUser = await Entity.fetchQuaverUser(quaverId, 1);
-            if (!quaverUser) throw "Quaver user does not exist";
+        if (result) return { success: false, message: "Someone else has linked this user already?" };
 
-            // Apply rating scaling roughly depending on skill
-            const diff = quaverUser.keys4.stats.overall_performance_rating;
-            // 0 QR = 500, 800 QR = 2500
-            const initialRating = (diff / 800) * 2000 + 500;
-
-            return await EntityModel.create({ quaverId, entityType: "user", rating: initialRating });
+        let quaverUser = await Entity.fetchQuaverUser(quaverId, 1);
+        if (!quaverUser) throw "Quaver user does not exist";
+        if (quaverUser.steam_id == user.steamId) {
+            userDoc.quaverId = quaverId;
+            userDoc.save();
+            return { success: true, quaverUser };
+        } else {
+            return { success: false, message: "User does not match" };
         }
     }
 
@@ -99,13 +41,32 @@ class Entity {
         else {
             let quaverMap = await Entity.fetchQuaverMap(quaverId);
             if (!quaverMap) throw "Quaver map does not exist";
+            let newMap = await EntityModel.create({ quaverId, entityType: "map" });
 
             // Apply rating scaling roughly depending on difficulty
-            // 0 QR = 500, 40 QR = 2500
-            const diff = quaverMap.difficulty_rating;
-            const initialRating = (diff / 40) * 2000 + 500;
+            // Approximation using 3 segmented linear functions
+            // https://docs.google.com/spreadsheets/d/1lfBCM6EAdJ1n-xf8HqR7PEEJDFoqApI8uy5s8ESf45g/edit#gid=247636023
+            //
+            // { qr: 2.5, percentile: 1.0 },
+            // { qr: 7, percentile: 0.55 },
+            // { qr: 18.5, percentile: 0.17 },
+            // { qr: 35, percentile: 0.01 },
 
-            return await EntityModel.create({ quaverId, entityType: "map", rating: initialRating });
+            const diff = quaverMap.difficulty_rating;
+            let percentile = 0;
+            const linear = (x1: number, x2: number, y1: number, y2: number) => ((diff - x1) / (x2 - x1)) * (y2 - y1) + y1;
+
+            if (diff > 35) percentile = 0.01;
+            else if (diff > 18.5) percentile = linear(18.5, 35, 0.17, 0.01);
+            else if (diff > 7) percentile = linear(7, 18.5, 0.55, 0.17);
+            else if (diff > 2) percentile = linear(2, 7, 1, 0.55);
+            else percentile = 1;
+
+            let ratingChange = (0.5 - percentile) * 1000; // Spreads rating from 500 to 2500
+
+            await EntityDatapointModel.createFreshDatapoint(newMap, 1500 + ratingChange, 200);
+
+            return newMap;
         }
     }
 
@@ -119,13 +80,6 @@ class Entity {
         const response: any = await Requester.GET(`${config.apiBaseUrl}/v1/maps/${id}`);
         if (response.status != 200) return null;
         return response.map;
-    }
-
-    static createIdFilter(entityType: EntityType, input: string | number): mongoose.FilterQuery<Entity> {
-        const quaverId = parseInt(input.toString());
-        if (input) return { entityType, quaverId };
-        else if (mongoose.Types.ObjectId.isValid(input)) return { entityType, id: input };
-        else throw "Provided ID was not valid";
     }
 }
 

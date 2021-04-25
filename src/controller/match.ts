@@ -10,7 +10,7 @@ export default class MatchController {
             return;
         }
         let user = req.user as Entity;
-        let method = MatchModel.findOngoingMatch(user).populate("entity1").populate("entity2").exec();
+        let method = MatchModel.findOngoingMatch(user);
         ResponseHandler.handle(method, res, 200);
     }
 
@@ -20,7 +20,7 @@ export default class MatchController {
             return;
         }
         let user = req.user as Entity;
-        let ongoing = await MatchModel.findOngoingMatch(user).populate("entity1").populate("entity2").exec();
+        let ongoing = await MatchModel.findOngoingMatch(user);
         if (ongoing) ResponseHandler.handle(new Promise((res) => res(ongoing)), res);
         else ResponseHandler.handle(MatchModel.matchmaker(user), res);
     }
@@ -41,7 +41,7 @@ export default class MatchController {
             }
         } else method = MatchModel.find({});
 
-        ResponseHandler.handle(method.populate("entity1").populate("entity2").exec(), res);
+        ResponseHandler.handle(method.populate("user").populate("map").exec(), res);
     }
 
     public static resultsPOST(req: Request, res: Response): void {
@@ -49,7 +49,7 @@ export default class MatchController {
             res.status(401).json({ message: "Not logged in" });
             return;
         }
-        const { resign } = req.body;
-        ResponseHandler.handle(MatchModel.submitMatch(req.user as Entity, resign), res);
+        const { giveUp } = req.body;
+        ResponseHandler.handle(MatchModel.submitMatch(req.user as Entity, giveUp), res);
     }
 }
