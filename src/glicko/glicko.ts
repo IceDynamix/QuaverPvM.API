@@ -1,81 +1,111 @@
-import { Player, Rating, MatchResult, Period } from "go-glicko";
-import { Entity, EntityModel } from "../models/entity";
-import { MatchModel } from "../models/match";
-import logging from "../config/logging";
+import { MatchResult, Period, Player, Rating } from "go-glicko";
 import config from "../config/config";
-import { EntityDatapointModel, EntityGlickoLink } from "../models/datapoint";
+import logging from "../config/logging";
+import { EntityDatapointModel } from "../models/datapoint";
+import { Entity, EntityModel } from "../models/entity";
+import { Match } from "../models/match";
+import { DocumentType } from "@typegoose/typegoose";
 
 export default class Glicko {
-    public static async updateAll() {
-        let timestamp = new Date();
+    public static async updateAllEmpty() {
+        let datapoints = await EntityDatapointModel.getAllCurrentDatapoints();
 
-        let results = await MatchModel.find({
-            processed: false,
-            $or: [
-                { result: true }, // User submitted a result, not null
-                { result: false },
-                { endsAt: { $lt: timestamp } }, // Timeout loss
-            ],
-        })
-            .populate("user")
-            .populate("map")
-            .exec();
+        let players = datapoints.map((dp) => ({ datapoint: dp, glicko: new Player(new Rating(dp.rating, dp.rd, dp.sigma)) }));
 
-        let entities = await EntityModel.find().exec();
-        let glickoPlayers: { [key: string]: Player } = {};
-
-        for (const entity of entities) {
-            const previous = await EntityDatapointModel.getCurrentEntityDatapoint(entity);
-            glickoPlayers[entity.id] = new Player(new Rating(previous.rating, previous.rd, previous.sigma));
-        }
-
-        logging.debug(`Created ${entities.length} glicko player instances`);
+        logging.debug(`Created ${datapoints.length} glicko player instances`);
 
         let period: Period = new Period(config.tau);
-        Object.values(glickoPlayers).forEach((player) => period.addPlayer(player));
+        players.forEach((player) => period.addPlayer(player.glicko));
 
-        logging.debug(`Added ${entities.length} players to period`);
-
-        results.forEach((resultDoc) => {
-            const { user, map, result } = resultDoc;
-
-            // Timeout loss
-            if (result == null) resultDoc.result = false;
-            resultDoc.processed = true;
-            resultDoc.save();
-
-            // Populated already
-
-            // @ts-ignore
-            let glickoUser = glickoPlayers[user!.id];
-            // @ts-ignore
-            let glickoMap = glickoPlayers[map!.id];
-
-            if (!glickoUser) {
-                logging.error("User does not exist", user);
-                return;
-            }
-            if (!glickoMap) {
-                logging.error("Map does not exist", map);
-                return;
-            }
-
-            period.addMatch(glickoUser, glickoMap, result ? MatchResult.WIN : MatchResult.LOSS);
-        });
-
-        logging.debug(`Added ${results.length} matches to period`);
-        logging.debug(`Starting calculation`);
+        logging.debug(`Added ${datapoints.length} players to period`);
 
         period.Calculate();
 
-        logging.debug(`Finished calculation`);
+        for (let player of players) {
+            let { datapoint, glicko } = player;
+            let oldRd = datapoint.rd;
+            let newDatapoint = await EntityDatapointModel.saveEntityGlicko(datapoint, glicko, false);
+            logging.info(`${newDatapoint._id} | RD ${oldRd.toFixed(0)} -> ${newDatapoint.rd.toFixed(0)}`);
+        }
 
-        await EntityDatapointModel.createNewDatapoints(timestamp, glickoPlayers);
+        let currentDps = await EntityDatapointModel.getAllCurrentDatapoints();
+        let rankedDps = currentDps.filter((dp) => dp.rd <= 100);
+        // Populated
+        let rankedUserDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "user");
+        let rankedMapDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "map");
+
+        for (let dp of rankedDps) {
+            // Populated
+            if ((dp.entity as Entity).entityType == "user") await EntityDatapointModel.saveEntityRanks(dp, rankedDps, rankedUserDps);
+            if ((dp.entity as Entity).entityType == "map") await EntityDatapointModel.saveEntityRanks(dp, rankedDps, rankedMapDps);
+            else await EntityDatapointModel.saveEntityRanks(dp, rankedDps, []);
+        }
+    }
+
+    public static async updateFromResult(match: DocumentType<Match>) {
+        let user = await EntityModel.findById(match.user);
+        if (!user) return;
+        let map = await EntityModel.findById(match.map);
+        if (!map) return;
+
+        logging.info(`Calculating match ${match.id}`);
+
+        let userStats = await EntityDatapointModel.getCurrentEntityDatapoint(user);
+        let mapStats = await EntityDatapointModel.getCurrentEntityDatapoint(map);
+
+        let glickoUser = new Player(new Rating(userStats.rating, userStats.rd, userStats.sigma));
+        let glickoMap = new Player(new Rating(mapStats.rating, mapStats.rd, mapStats.sigma));
+
+        let period: Period = new Period(config.tau);
+        period.addPlayer(glickoUser);
+        period.addPlayer(glickoMap);
+
+        // Timed out match == null, which resolves to a loss
+        let outcome = match.result == true ? MatchResult.WIN : MatchResult.LOSS;
+        period.addMatch(glickoUser, glickoMap, outcome);
+        period.Calculate();
+
+        // Values get saved in saveEntityGlicko()
+        userStats.matches++;
+        mapStats.matches++;
+
+        if (outcome == MatchResult.WIN) userStats.wins++;
+        else mapStats.wins++;
+
+        let { rating: oldUserR, rd: oldUserRd, sigma: oldUserSigma } = userStats;
+        let newUserDp = await EntityDatapointModel.saveEntityGlicko(userStats, glickoUser, false);
+        logging.info(
+            `Rating ${oldUserR.toFixed(0)} -> ${newUserDp.rating.toFixed(0)} | RD ${oldUserRd.toFixed(0)} -> ${newUserDp.rd.toFixed(0)} | Sigma ${oldUserSigma.toFixed(4)} -> ${newUserDp.sigma.toFixed(
+                4
+            )}`
+        );
+
+        let { rating: oldMapR, rd: oldMapRd, sigma: oldMapSigma } = mapStats;
+        let newMapDp = await EntityDatapointModel.saveEntityGlicko(mapStats, glickoMap, false);
+        logging.info(
+            `Rating ${oldMapR.toFixed(0)} -> ${newMapDp.rating.toFixed(0)} | RD ${oldMapRd.toFixed(0)} -> ${newMapDp.rd.toFixed(0)} | Sigma ${oldMapSigma.toFixed(4)} -> ${newMapDp.sigma.toFixed(4)}`
+        );
+
+        let currentDps = await EntityDatapointModel.getAllCurrentDatapoints();
+        let rankedDps = currentDps.filter((dp) => dp.rd <= 100);
+
+        // Populated
+        let rankedUserDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "user");
+        let rankedMapDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "map");
+
+        await EntityDatapointModel.saveEntityRanks(newUserDp, rankedDps, rankedUserDps);
+        await EntityDatapointModel.saveEntityRanks(mapStats, rankedDps, rankedMapDps);
+        match.processed = true;
+        await match.save();
     }
 
     // https://www.smogon.com/forums/threads/gxe-glixare-a-much-better-way-of-estimating-a-players-overall-rating-than-shoddys-cre.51169/
     public static glixare(rating: number, rd: number): number {
         return 25000 * (1 / (1 + Math.pow(10, ((1500 - rating) * Math.PI) / Math.sqrt(3 * Math.LN10 * Math.LN10 * rd * rd + 2500 * (64 * Math.PI * Math.PI + 147 * Math.LN10 * Math.LN10)))));
+    }
+
+    public static gxeToGlicko(gxe: number, rd: number): number {
+        return -((Math.log10(1 / gxe - 1) * Math.sqrt(Math.pow(3 * Math.LN10, Math.pow(2 * rd, 2 + 2500 * Math.pow(64 * Math.PI, Math.pow(2 + 147 * Math.LN10, 2)))))) / Math.PI - 1500);
     }
 
     public static ranks() {

@@ -1,11 +1,10 @@
-import { getModelForClass, modelOptions, mongoose, prop, Ref } from "@typegoose/typegoose";
+import { DocumentType, getModelForClass, modelOptions, prop, Ref } from "@typegoose/typegoose";
 import { Player } from "go-glicko";
-import logging from "../config/logging";
 import Glicko from "../glicko/glicko";
 import { Entity, EntityModel } from "./entity";
-import { MatchModel } from "./match";
 
 type EntityGlickoLink = { entity: Entity; glicko: Player };
+type EntityDpDoc = DocumentType<EntityDatapoint>;
 
 @modelOptions({
     schemaOptions: { timestamps: true, toObject: { getters: true }, toJSON: { virtuals: true } },
@@ -22,18 +21,19 @@ class EntityDatapoint {
     @prop() public typeRank!: number;
     @prop() public overallPercentile!: number;
     @prop() public typePercentile!: number;
+    @prop() public fixed!: boolean;
 
-    get glixare() {
+    get glixare(): number {
         return Glicko.glixare(this.rating, this.rd);
     }
 
-    get letterRank() {
+    get letterRank(): string {
         if (this.rd > 100) return "z";
         for (const rank of Glicko.ranks()) if (this.overallPercentile <= rank.percentile) return rank.rank;
         return "d";
     }
 
-    public static async getCurrentEntityDatapoint(entity: Entity) {
+    public static async getCurrentEntityDatapoint(entity: Entity): Promise<EntityDpDoc> {
         let results = await EntityDatapointModel.find({ entity }).sort({ timestamp: -1 }).populate("entity").exec();
         if (results.length > 0) {
             return results[0];
@@ -42,14 +42,14 @@ class EntityDatapoint {
         }
     }
 
-    public static async getAllCurrentDatapoints(entityFilter: any = {}) {
+    public static async getAllCurrentDatapoints(entityFilter: any = {}): Promise<EntityDpDoc[]> {
         let allEntities = await EntityModel.find(entityFilter).exec();
-        let allDatapoints = [];
+        let allDatapoints: EntityDpDoc[] = [];
         for (const entity of allEntities) allDatapoints.push(await EntityDatapointModel.getCurrentEntityDatapoint(entity));
         return allDatapoints.sort((a, b) => b.glixare - a.glixare);
     }
 
-    public static async createFreshDatapoint(entity: Entity, rating: number = 1500, rd: number = 350) {
+    public static async createFreshDatapoint(entity: Entity, rating: number = 1500, rd: number = 350): Promise<EntityDpDoc> {
         return await EntityDatapointModel.create({
             entity,
             timestamp: new Date(),
@@ -62,87 +62,57 @@ class EntityDatapoint {
             typeRank: -1,
             overallPercentile: -1,
             typePercentile: -1,
+            fixed: false,
         });
     }
 
-    // Temporary measures to get an updated count instead of reiterating the entire results array again
-    public static async pushResult(entity: Entity, win: boolean) {
-        let previous = await EntityDatapointModel.getCurrentEntityDatapoint(entity);
-        previous.matches++;
-        if (win) previous.wins++;
-        previous.save();
+    public static async saveEntityGlicko(entityDp: EntityDpDoc, glickoPlayer: Player, fixed: boolean) {
+        entityDp.timestamp = new Date();
+        entityDp.rating = glickoPlayer.Rating().R();
+        entityDp.rd = glickoPlayer.Rating().RD();
+        entityDp.sigma = glickoPlayer.Rating().Sigma();
+
+        // Create copy of document after saving
+        if (fixed || entityDp.fixed) delete entityDp._id;
+        entityDp.fixed = fixed;
+        return await entityDp.save();
     }
 
-    public static async createNewDatapoints(timestamp: Date, glickoPlayers: { [key: string]: Player }) {
-        const previous = await EntityDatapointModel.getAllCurrentDatapoints();
-        const ranked = previous.filter((dp) => dp.rd < 100);
-        const sorted = ranked.sort((a, b) => a.glixare - b.glixare);
-
-        let typeLeaderboards = {
-            user: ranked.filter((dp) => (dp.entity! as Entity).entityType == "user"), // already populated
-            map: ranked.filter((dp) => (dp.entity! as Entity).entityType == "map"),
-        };
-
-        for (const entityId in glickoPlayers) {
-            let player = glickoPlayers[entityId];
-            let newRating = player.Rating().R();
-            let newRd = player.Rating().RD();
-            let newSigma = player.Rating().Sigma();
-
-            let entity = (await EntityModel.findById(entityId).exec())!;
-
-            // Comparing the objects or the ids without toString() doesn't work for some reason
-            // Guaranteed find since new datapoint is created if not found earlier in getAllCurrentDatapoints()
-            // Wasted 2 hours of my life
-            let previousDp = previous.find((dp: EntityDatapoint) => {
-                // @ts-ignore
-                return dp.entity._id.toString() == entity.id.toString();
-            })!;
-
-            const results = await MatchModel.findEntityResults(entity).exec();
-            const wins = results.filter((r) => (r.user != entity) == r.result);
-
-            logging.debug(
-                `${entityId} | Rating ${previousDp.rating.toFixed(0)} -> ${newRating.toFixed(0)} | RD ${previousDp.rd?.toFixed(0)} -> ${newRd.toFixed(0)} | Sigma ${previousDp.sigma?.toFixed(
-                    4
-                )} -> ${newSigma.toFixed(4)}`
-            );
-
-            // -1 if unranked
-            let overallRank = previousDp.glixare == -1 ? -1 : sorted.map((e) => e.glixare).indexOf(previousDp.glixare) + 1;
-            let typeRank = previousDp.glixare == -1 ? -1 : typeLeaderboards[entity.entityType].map((e) => e.glixare).indexOf(previousDp.glixare) + 1;
-
-            let overallPercentile = overallRank == -1 || sorted.length == 0 ? -1 : overallRank / sorted.length;
-            let typePercentile = typeRank == -1 || typeLeaderboards[entity.entityType].length == 0 ? -1 : typeRank / typeLeaderboards[entity.entityType].length;
-
-            await EntityDatapointModel.create({
-                entity,
-                timestamp,
-                rating: newRating,
-                rd: newRd,
-                sigma: newSigma,
-                matches: results.length,
-                wins: wins.length,
-                overallRank,
-                typeRank,
-                overallPercentile,
-                typePercentile,
-            });
+    // if only updating after a match, then saveEntityGlicko and saveEntityRanks can be called sequentially
+    // but if updating a lot of users, then saveEntityGlicko must be called on all users first, and then saveEntityRanks
+    // ranked and rankedOfType must be retrieved outside to ensure performance
+    public static async saveEntityRanks(entityDp: EntityDpDoc, ranked: EntityDpDoc[], rankedOfType: EntityDpDoc[]) {
+        if (ranked.length == 0) {
+            entityDp.overallRank = -1;
+            entityDp.overallPercentile = -1;
+        } else {
+            let higherRanked = ranked.filter((dp) => dp.glixare > entityDp.glixare);
+            entityDp.overallRank = higherRanked.length + 1;
+            entityDp.overallPercentile = entityDp.overallRank / ranked.length;
         }
+
+        if (rankedOfType.length == 0) {
+            entityDp.typeRank = -1;
+            entityDp.typePercentile = -1;
+        } else {
+            let higherRankedTypes = rankedOfType.filter((dp) => dp.glixare > entityDp.glixare);
+            entityDp.typeRank = higherRankedTypes.length + 1;
+            entityDp.typePercentile = entityDp.typeRank / rankedOfType.length;
+        }
+
+        await entityDp.save();
     }
 }
 
+type Stats = {
+    overall: number;
+    map: number;
+    user: number;
+};
+
 type RankThreshold = {
-    ranks: {
-        overall: number;
-        map: number;
-        user: number;
-    };
-    glixare: {
-        overall: number;
-        map: number;
-        user: number;
-    };
+    ranks: Stats;
+    glixare: Stats;
 };
 
 class GeneralDatapoint {

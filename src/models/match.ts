@@ -1,9 +1,10 @@
 import { getModelForClass, modelOptions, prop, Ref } from "@typegoose/typegoose";
-import { Entity } from "./entity";
+import config from "../config/config";
+import logging from "../config/logging";
 import Glicko from "../glicko/glicko";
 import Requester from "../requester/requester";
-import config from "../config/config";
 import { EntityDatapointModel } from "./datapoint";
+import { Entity } from "./entity";
 
 const matchTimeout: number = 10 * 60 * 1000;
 const blacklistPastN: number = 10;
@@ -49,14 +50,15 @@ class Match {
     }
 
     public static async findOngoingMatch(entity: Entity) {
-        let result = await MatchModel.findOne({
+        let results = await MatchModel.find({
             $and: [{ $or: [{ user: entity }, { map: entity }] }, { result: null }],
         })
             .populate("user")
             .populate("map")
             .exec();
 
-        if (result?.submissable) return result;
+        let filtered = results.filter((m) => m.submissable).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        if (filtered.length > 0) return filtered[0];
         return null;
     }
 
@@ -81,7 +83,9 @@ class Match {
         let map: Entity = mapStats[Math.floor(mapStats.length * Math.random())].entity as Entity;
         let createdAt = new Date();
         let endsAt = new Date(createdAt.getTime() + matchTimeout);
-        return await MatchModel.create({ user, map, result: null, createdAt, endsAt });
+        let newMatch = await MatchModel.create({ user, map, result: null, createdAt, endsAt });
+        setTimeout(MatchModel.cleanUpTimedOut, matchTimeout);
+        return newMatch;
     }
 
     static async scanRecentPlays(entity: any) {
@@ -120,38 +124,32 @@ class Match {
         if (validPlays.length == 0)
             return {
                 success: false,
-                message: `Found recent play on map, but required grade was not reached. (Acc: ${validModPlays[0].accuracy.toFixed(
-                    2
-                )}%)`,
+                message: `Found recent play on map, but required grade was not reached. (Acc: ${validModPlays[0].accuracy.toFixed(2)}%)`,
                 plays: validModPlays,
             };
 
         return { success: true, message: `Submitted ${validPlays[0].accuracy.toFixed(2)}% score as a win`, plays: validPlays };
-        return { success: true, message: "bypassed" };
     }
 
     public static async submitMatch(entity: Entity, resign: boolean = false) {
         let ongoingMatch = await Match.findOngoingMatch(entity);
-        if (ongoingMatch == null)
-            return new Promise((resolve, reject) => resolve({ success: false, message: "No match ongoing" }));
+        if (ongoingMatch == null) return new Promise((resolve, reject) => resolve({ success: false, message: "No match ongoing" }));
 
         let response: any;
 
         if (resign) {
             ongoingMatch.result = false;
             ongoingMatch.save();
-            EntityDatapointModel.pushResult(entity, false);
             response = { success: true, message: "Successfully submitted a loss" };
         } else {
             response = await MatchModel.scanRecentPlays(entity);
             if (response.success) {
                 ongoingMatch.result = true;
                 ongoingMatch.save();
-                await EntityDatapointModel.pushResult(entity, true);
             }
         }
 
-        if (response.success) await Glicko.updateAll();
+        if (response.success) await Glicko.updateFromResult(ongoingMatch);
         return new Promise((resolve, reject) => resolve(response));
     }
 
@@ -159,6 +157,12 @@ class Match {
         const response: any = await Requester.GET(`${config.apiBaseUrl}/v1/users/scores/recent?id=${id}&mode=${mode}`);
         if (response.status != 200) return null;
         return response.scores;
+    }
+
+    public static async cleanUpTimedOut() {
+        logging.info("Cleaning up timed out matches");
+        let timedOut = await MatchModel.find({ result: null, endsAt: { $lt: new Date() } });
+        for (let match of timedOut) Glicko.updateFromResult(match);
     }
 }
 

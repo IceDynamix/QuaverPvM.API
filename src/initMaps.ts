@@ -3,7 +3,7 @@ import { EntityModel } from "./models/entity";
 import fs from "fs";
 import logging from "./config/logging";
 
-function addNewMaps(count: number) {
+export function addNewMaps(count: number) {
     let validMaps = fs
         .readFileSync("./maps.txt")
         .toString()
@@ -26,5 +26,3 @@ function addNewMaps(count: number) {
             .catch((err) => logging.info(`Skipped ${mapId} (${err})`));
     }
 }
-
-addNewMaps(100);

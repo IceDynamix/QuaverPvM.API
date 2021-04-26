@@ -17,9 +17,4 @@ export default class EntityController {
     public static selfGET(req: Request, res: Response): void {
         ResponseHandler.handle(new Promise((resolve) => resolve(req.user ?? null)), res, 200);
     }
-
-    public static connect(req: Request, res: Response): void {
-        let quaverId: number = parseInt(req.body.id);
-        ResponseHandler.handle(EntityModel.connectUserToQuaver(req.user as Entity, quaverId), res);
-    }
 }

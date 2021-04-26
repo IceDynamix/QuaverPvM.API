@@ -1,7 +1,7 @@
 require("dotenv").config();
 
 import Database from "./config/database";
-import { EntityModel } from "./models/entity";
+import { EntityDoc, EntityModel } from "./models/entity";
 
 import express from "express";
 import { Request, Response } from "express";
@@ -21,7 +21,6 @@ import { EntityDatapointModel } from "./models/datapoint";
 import axios from "axios";
 
 const OAuth2Strategy = require("passport-oauth2").Strategy;
-// const SteamStrategy = require("passport-steam").Strategy;
 
 const app = express();
 
@@ -31,7 +30,7 @@ const corsOptions = {
     credentials: true,
 };
 
-passport.serializeUser((user: any, done) => done(null, user._id));
+passport.serializeUser((user: EntityDoc, done) => done(null, user.id));
 
 passport.deserializeUser((id, done) =>
     EntityModel.findById(id)
@@ -54,13 +53,14 @@ passport.use(
                 let response = await axios.post(config.quaverBaseUrl + `/oauth2/me`, { code: accessToken }, options);
                 let quaverId = response.data.user.id;
 
-                let existing = await EntityModel.findOne({ quaverId });
+                let existing = await EntityModel.findOne({ quaverId, entityType: "user" });
                 if (existing) return done(null, existing);
 
-                let newUser = await EntityModel.create({ quaverId, entityType: "user" });
-                await EntityDatapointModel.createFreshDatapoint(newUser);
+                let newUser = await EntityModel.createNewUser(quaverId);
+
                 done(null, newUser);
             } catch (err) {
+                logging.error(err);
                 done(err);
             }
         }
@@ -76,12 +76,9 @@ class Server {
 
         // Request logging
         app.use((req, res, next) => {
-            logging.info(`[${req.method}] '${req.url}' - IP: [${req.socket.remoteAddress}]`);
-
             res.on("finish", () => {
-                logging.info(`[${req.method}] '${req.url}' - STATUS: [${res.statusCode}] - IP: [${req.socket.remoteAddress}]`);
+                logging.info(`${req.method} ${req.url} - [${res.statusCode}] - IP: [${req.socket.remoteAddress}]`);
             });
-
             next();
         });
 
@@ -110,7 +107,6 @@ class Server {
 
         app.get("/me", EntityController.selfGET);
         app.get("/entities", EntityController.GET);
-        app.post("/connect", passport.authenticate("steam"), EntityController.connect);
 
         app.get("/match", MatchController.GET);
         app.post("/match", MatchController.POST);
@@ -122,14 +118,12 @@ class Server {
         app.get("/entity/stats/:id", DatapointController.entitySingleGET);
         app.get("/entity/history/:id", DatapointController.entityFullGET);
 
+        app.get("/leaderboard", DatapointController.leaderboardGET);
+
         app.get("/logout", (req: Request, res: Response) => {
             req.logout();
-            return res.redirect(config.quaverBaseUrl);
+            return res.redirect(config.clientBaseUrl);
         });
-        // app.get("/auth/steam", passport.authenticate("steam"), (req, res) => {});
-        // app.get("/auth/steam/return", passport.authenticate("steam", { failureRedirect: "/login" }), function (req, res) {
-        //     res.redirect(config.quaverBaseUrl);
-        // });
 
         app.get("/auth/quaver", passport.authenticate("oauth2"), (req, res) => {});
         app.get("/auth/quaver/callback", passport.authenticate("oauth2"), (req, res) => {
