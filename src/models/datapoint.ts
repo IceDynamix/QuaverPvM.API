@@ -49,7 +49,8 @@ class EntityDatapoint {
         return allDatapoints.sort((a, b) => b.glixare - a.glixare);
     }
 
-    public static async createFreshDatapoint(entity: Entity, rating: number = 1500, rd: number = 350): Promise<EntityDpDoc> {
+    // Using new default RD to match glixare/qr scaling
+    public static async createFreshDatapoint(entity: Entity, rating: number = 1500, rd: number = 500): Promise<EntityDpDoc> {
         return await EntityDatapointModel.create({
             entity,
             timestamp: new Date(),
