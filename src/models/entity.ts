@@ -46,11 +46,11 @@ class Entity {
             let percentile = 0;
             const linear = (x1: number, x2: number, y1: number, y2: number) => ((diff - x1) / (x2 - x1)) * (y2 - y1) + y1;
 
-            if (diff > 40) percentile = 0.001;
-            else if (diff > 35) percentile = linear(35, 40, 0.01, 0.001);
-            else if (diff > 18.5) percentile = linear(18.5, 35, 0.17, 0.01);
-            else if (diff > 7) percentile = linear(7, 18.5, 0.55, 0.17);
-            else if (diff > 3) percentile = linear(2, 7, 0.999, 0.55);
+            if (diff >= 40) percentile = 0.001;
+            else if (diff >= 35) percentile = linear(35, 40, 0.01, 0.001);
+            else if (diff >= 18.5) percentile = linear(18.5, 35, 0.17, 0.01);
+            else if (diff >= 7) percentile = linear(7, 18.5, 0.55, 0.17);
+            else if (diff >= 3) percentile = linear(2, 7, 0.999, 0.55);
             else percentile = 0.999;
 
             // function errs if percentile is exactly 1 or 0

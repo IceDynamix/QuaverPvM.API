@@ -105,7 +105,7 @@ export default class Glicko {
     }
 
     public static gxeToGlicko(gxe: number, rd: number): number {
-        return -((Math.log10(1 / gxe - 1) * Math.sqrt(Math.pow(3 * Math.LN10, Math.pow(2 * rd, 2 + 2500 * Math.pow(64 * Math.PI, Math.pow(2 + 147 * Math.LN10, 2)))))) / Math.PI - 1500);
+        return -((Math.log10(1 / gxe - 1) * Math.sqrt(3 * Math.LN10 * Math.LN10 * rd * rd + 2500 * (64 * Math.PI * Math.PI + 147 * Math.LN10 * Math.LN10))) / Math.PI - 1500);
     }
 
     public static ranks() {
