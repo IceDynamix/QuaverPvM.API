@@ -91,6 +91,7 @@ class Server {
                 cookie: {
                     secure: false,
                     maxAge: 30 * 24 * 60 * 60 * 1000, // 30d
+                    domain: ".icedynamix.moe",
                 },
                 store: MongoStore.create({ mongoUrl: config.databaseUrl }),
             })
