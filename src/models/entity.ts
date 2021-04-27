@@ -54,7 +54,7 @@ class Entity {
             else percentile = 0.999;
 
             // function errs if percentile is exactly 1 or 0
-            let newRating = Glicko.gxeToGlicko(percentile, 200);
+            let newRating = Glicko.gxeToGlicko(1 - percentile, 200);
 
             await EntityDatapointModel.createFreshDatapoint(newMap, newRating, 200);
             return newMap;
