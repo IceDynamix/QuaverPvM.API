@@ -8,7 +8,7 @@ import { Entity } from "./entity";
 
 const matchTimeout: number = 10 * 60 * 1000;
 const blacklistPastN: number = 10;
-const rdWindowFactor: number = 0.5;
+const rdWindowFactor: number = 1;
 
 const modsAreInvalid = (mods: string) => {
     for (const mod of mods.split(", ")) {
