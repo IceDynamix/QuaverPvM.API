@@ -58,7 +58,7 @@ class Entity {
         let validMaps = fs
             .readFileSync("./maps.tsv")
             .toString()
-            .split("\r\n")
+            .split("\n")
             .map((row) => row.split("\t"));
 
         // Shuffle
