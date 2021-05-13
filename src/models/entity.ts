@@ -2,6 +2,8 @@ import { DocumentType, getModelForClass, modelOptions, prop, Severity } from "@t
 import config from "../config/config";
 import Requester from "../requester/requester";
 import { EntityDatapointModel } from "./datapoint";
+import fs from "fs";
+import logging from "../config/logging";
 
 type EntityType = "map" | "user";
 type EntityDoc = DocumentType<Entity>;
@@ -23,28 +25,21 @@ class Entity {
         return newUser;
     }
 
-    public static async createNewMap(quaverId: number, difficulty: { rate: number; diff: number }[]): Promise<EntityDoc> {
-        for (const { rate, diff } of difficulty) {
-            const result = await EntityModel.findOne({ entityType: "map", quaverId, mapRate: rate }).exec();
-            if (result) continue;
-            else {
-                let newMap = await EntityModel.create({ quaverId, entityType: "map", mapRate: rate });
+    public static async createNewMap(quaverId: number, mapRate: number, diff: number): Promise<EntityDoc> {
+        let newMap = await EntityModel.create({ quaverId, entityType: "map", mapRate });
 
-                // Apply rating scaling roughly depending on difficulty
-                // The spread of all difficulty values is linear
-                // https://docs.google.com/spreadsheets/d/1lfBCM6EAdJ1n-xf8HqR7PEEJDFoqApI8uy5s8ESf45g/edit#gid=247636023
+        // Apply rating scaling roughly depending on difficulty
+        // The spread of all difficulty values in the total set of maps is roughly linear
 
-                const linear = (x1: number, x2: number, y1: number, y2: number) => ((diff - x1) / (x2 - x1)) * (y2 - y1) + y1;
+        const linear = (x1: number, x2: number, y1: number, y2: number) => ((diff - x1) / (x2 - x1)) * (y2 - y1) + y1;
 
-                let ratingAdjustment: number;
-                if (diff >= 40) ratingAdjustment = 1000;
-                else if (diff >= 0) ratingAdjustment = linear(0, 40, -1000, 1000);
-                else ratingAdjustment = -1000;
+        let ratingAdjustment: number;
+        if (diff >= 40) ratingAdjustment = 1000;
+        else if (diff >= 0) ratingAdjustment = linear(0, 40, -1000, 1000);
+        else ratingAdjustment = -1000;
 
-                await EntityDatapointModel.createFreshDatapoint(newMap, 1500 + ratingAdjustment, 200);
-                return newMap;
-            }
-        }
+        await EntityDatapointModel.createFreshDatapoint(newMap, 1500 + ratingAdjustment, 200);
+        return newMap;
     }
 
     static async fetchQuaverUser(id: number | string, mode: number): Promise<any> {
@@ -57,6 +52,28 @@ class Entity {
         const response: any = await Requester.GET(`${config.apiBaseUrl}/v1/maps/${id}`);
         if (response.status != 200) return null;
         return response.map;
+    }
+
+    static addNewMaps(count: number) {
+        let validMaps = fs
+            .readFileSync("./maps.tsv")
+            .toString()
+            .split("\r\n")
+            .map((row) => row.split("\t"));
+
+        // Shuffle
+        for (let i = validMaps.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [validMaps[i], validMaps[j]] = [validMaps[j], validMaps[i]];
+        }
+
+        let mapsToAdd = validMaps.slice(0, count);
+
+        for (const [mapId, rate, diff] of mapsToAdd) {
+            EntityModel.createNewMap(parseInt(mapId), parseFloat(rate), parseFloat(diff))
+                .then((map) => logging.info(`Added ${mapId}`))
+                .catch((err) => logging.info(`Skipped ${mapId} (${err})`));
+        }
     }
 }
 

@@ -2,7 +2,7 @@ import { CronJob } from "cron";
 import Glicko from "../glicko/glicko";
 import { GeneralDatapointModel } from "../models/datapoint";
 import logging from "./logging";
-import { addNewMaps } from "../initMaps";
+import { Entity } from "../models/entity";
 
 // seconds? minutes hours date month weekday
 
@@ -14,7 +14,7 @@ const midnightJob = new CronJob("00 00 00 * * *", () => {
             logging.info("General datapoint created");
         });
     });
-    addNewMaps(2);
+    Entity.addNewMaps(5);
 });
 
 export { midnightJob };

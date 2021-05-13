@@ -11,10 +11,6 @@ export default class ResponseHandler {
         }
     }
 
-    static handleArrayResponse(results: Array<any>, res: Response) {
-        res.status(200).json({ count: results.length, results });
-    }
-
     static handleError(err: Error, res: Response) {
         logging.error(err.message, err);
         res.status(500).json({ message: err.message, err });

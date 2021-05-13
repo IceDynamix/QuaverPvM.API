@@ -34,12 +34,7 @@ export default class Glicko {
         let rankedUserDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "user");
         let rankedMapDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "map");
 
-        for (let dp of rankedDps) {
-            // Populated
-            if ((dp.entity as Entity).entityType == "user") await EntityDatapointModel.saveEntityRanks(dp, rankedDps, rankedUserDps);
-            if ((dp.entity as Entity).entityType == "map") await EntityDatapointModel.saveEntityRanks(dp, rankedDps, rankedMapDps);
-            else await EntityDatapointModel.saveEntityRanks(dp, rankedDps, []);
-        }
+        for (let dp of rankedDps) await EntityDatapointModel.saveEntityRanks(dp, rankedDps, rankedUserDps, rankedMapDps);
     }
 
     public static async updateFromResult(match: DocumentType<Match>) {
@@ -93,8 +88,8 @@ export default class Glicko {
         let rankedUserDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "user");
         let rankedMapDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "map");
 
-        await EntityDatapointModel.saveEntityRanks(newUserDp, rankedDps, rankedUserDps);
-        await EntityDatapointModel.saveEntityRanks(mapStats, rankedDps, rankedMapDps);
+        await EntityDatapointModel.saveEntityRanks(newUserDp, rankedDps, rankedUserDps, rankedMapDps);
+        await EntityDatapointModel.saveEntityRanks(mapStats, rankedDps, rankedUserDps, rankedMapDps);
         match.processed = true;
         await match.save();
     }

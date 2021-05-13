@@ -1,4 +1,4 @@
-import { DocumentType, getModelForClass, modelOptions, prop, Ref } from "@typegoose/typegoose";
+import { DocumentType, getModelForClass, modelOptions, prop, Ref, Severity } from "@typegoose/typegoose";
 import { Player } from "go-glicko";
 import Glicko from "../glicko/glicko";
 import { Entity, EntityModel } from "./entity";
@@ -18,39 +18,33 @@ class EntityDatapoint {
     @prop() public wins!: number;
     @prop() public matches!: number;
     @prop() public overallRank!: number;
-    @prop() public typeRank!: number;
     @prop() public overallPercentile!: number;
-    @prop() public typePercentile!: number;
+    @prop() public userRank!: number;
+    @prop() public userPercentile!: number;
+    @prop() public mapRank!: number;
+    @prop() public mapPercentile!: number;
     @prop() public fixed!: boolean;
-
-    get glixare(): number {
-        return Glicko.glixare(this.rating, this.rd);
-    }
 
     get letterRank(): string {
         if (this.rd > 100) return "z";
-        for (const rank of Glicko.ranks()) if (this.overallPercentile <= rank.percentile) return rank.rank;
+        for (const rank of Glicko.ranks()) if (this.userPercentile <= rank.percentile) return rank.rank;
         return "d";
     }
 
     public static async getCurrentEntityDatapoint(entity: Entity): Promise<EntityDpDoc> {
         let results = await EntityDatapointModel.find({ entity }).sort({ timestamp: -1 }).populate("entity").exec();
-        if (results.length > 0) {
-            return results[0];
-        } else {
-            return await EntityDatapointModel.createFreshDatapoint(entity);
-        }
+        if (results.length > 0) return results[0];
+        return await EntityDatapointModel.createFreshDatapoint(entity);
     }
 
     public static async getAllCurrentDatapoints(entityFilter: any = {}): Promise<EntityDpDoc[]> {
         let allEntities = await EntityModel.find(entityFilter).exec();
         let allDatapoints: EntityDpDoc[] = [];
         for (const entity of allEntities) allDatapoints.push(await EntityDatapointModel.getCurrentEntityDatapoint(entity));
-        return allDatapoints.sort((a, b) => b.glixare - a.glixare);
+        return allDatapoints.sort((a, b) => b.rating - a.rating);
     }
 
-    // Using new default RD to match glixare/qr scaling
-    public static async createFreshDatapoint(entity: Entity, rating: number = 1500, rd: number = 500): Promise<EntityDpDoc> {
+    public static async createFreshDatapoint(entity: Entity, rating: number = 1500, rd: number = 350): Promise<EntityDpDoc> {
         return await EntityDatapointModel.create({
             entity,
             timestamp: new Date(),
@@ -60,9 +54,11 @@ class EntityDatapoint {
             wins: 0,
             matches: 0,
             overallRank: -1,
-            typeRank: -1,
             overallPercentile: -1,
-            typePercentile: -1,
+            userRank: -1,
+            userPercentile: -1,
+            mapRank: -1,
+            mapPercentile: -1,
             fixed: false,
         });
     }
@@ -82,24 +78,24 @@ class EntityDatapoint {
     // if only updating after a match, then saveEntityGlicko and saveEntityRanks can be called sequentially
     // but if updating a lot of users, then saveEntityGlicko must be called on all users first, and then saveEntityRanks
     // ranked and rankedOfType must be retrieved outside to ensure performance
-    public static async saveEntityRanks(entityDp: EntityDpDoc, ranked: EntityDpDoc[], rankedOfType: EntityDpDoc[]) {
-        if (ranked.length == 0) {
-            entityDp.overallRank = -1;
-            entityDp.overallPercentile = -1;
-        } else {
-            let higherRanked = ranked.filter((dp) => dp.glixare > entityDp.glixare);
-            entityDp.overallRank = higherRanked.length + 1;
-            entityDp.overallPercentile = entityDp.overallRank / ranked.length;
-        }
+    public static async saveEntityRanks(entityDp: EntityDpDoc, ranked: EntityDpDoc[], rankedUsers: EntityDpDoc[], rankedMaps: EntityDpDoc[]) {
+        const stats = (entities: EntityDpDoc[]) => {
+            if (entities.length == 0) return { rank: -1, percentile: -1 };
+            let higherRanked = entities.filter((dp) => dp.rating > entityDp.rating);
+            return { rank: higherRanked.length + 1, percentile: (higherRanked.length + 1) / entities.length };
+        };
 
-        if (rankedOfType.length == 0) {
-            entityDp.typeRank = -1;
-            entityDp.typePercentile = -1;
-        } else {
-            let higherRankedTypes = rankedOfType.filter((dp) => dp.glixare > entityDp.glixare);
-            entityDp.typeRank = higherRankedTypes.length + 1;
-            entityDp.typePercentile = entityDp.typeRank / rankedOfType.length;
-        }
+        const overallStats = stats(ranked);
+        entityDp.overallRank = overallStats.rank;
+        entityDp.overallPercentile = overallStats.percentile;
+
+        const userStats = stats(rankedUsers);
+        entityDp.userRank = userStats.rank;
+        entityDp.userPercentile = userStats.percentile;
+
+        const mapStats = stats(rankedMaps);
+        entityDp.mapRank = mapStats.rank;
+        entityDp.mapPercentile = mapStats.percentile;
 
         await entityDp.save();
     }
@@ -113,9 +109,10 @@ type Stats = {
 
 type RankThreshold = {
     ranks: Stats;
-    glixare: Stats;
+    rating: Stats;
 };
 
+@modelOptions({ options: { allowMixed: Severity.ALLOW } })
 class GeneralDatapoint {
     @prop({ default: 0 })
     public userCount!: number;
@@ -157,13 +154,13 @@ class GeneralDatapoint {
                 user: rankedUsers.length == 0 ? -1 : Math.floor((rankedUsers.length - 1) * percentile),
             };
 
-            let glixare = {
-                overall: ranks["overall"] == -1 ? -1 : ranked[ranks["overall"]].glixare,
-                map: ranks["map"] == -1 ? -1 : rankedMaps[ranks["map"]].glixare,
-                user: ranks["user"] == -1 ? -1 : rankedUsers[ranks["user"]].glixare,
+            let rating = {
+                overall: ranks["overall"] == -1 ? -1 : ranked[ranks["overall"]].rating,
+                map: ranks["map"] == -1 ? -1 : rankedMaps[ranks["map"]].rating,
+                user: ranks["user"] == -1 ? -1 : rankedUsers[ranks["user"]].rating,
             };
 
-            return { rank: rank.rank, ranks, glixare };
+            return { rank: rank.rank, ranks, rating };
         });
 
         GeneralDatapointModel.create({

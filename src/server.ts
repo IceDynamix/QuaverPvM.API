@@ -1,26 +1,20 @@
 require("dotenv").config();
 
-import Database from "./config/database";
-import { EntityDoc, EntityModel } from "./models/entity";
-
-import express from "express";
-import { Request, Response } from "express";
-import passport from "passport";
-import session from "express-session";
+import axios from "axios";
 import MongoStore from "connect-mongo";
 import cors from "cors";
-
+import express, { Request, Response } from "express";
+import session from "express-session";
+import passport from "passport";
 import config from "./config/config";
+import { midnightJob } from "./config/cron";
+import Database from "./config/database";
 import logging from "./config/logging";
+import DatapointController from "./controller/datapoint";
 import EntityController from "./controller/entity";
 import MatchController from "./controller/match";
-import DatapointController from "./controller/datapoint";
-
-import { midnightJob } from "./config/cron";
-import { EntityDatapointModel } from "./models/datapoint";
-import axios from "axios";
-
-const OAuth2Strategy = require("passport-oauth2").Strategy;
+import { EntityDoc, EntityModel } from "./models/entity";
+import { Strategy as OAuth2Strategy } from "passport-oauth2";
 
 const app = express();
 
@@ -55,9 +49,7 @@ passport.use(
 
                 let existing = await EntityModel.findOne({ quaverId, entityType: "user" });
                 if (existing) return done(null, existing);
-
                 let newUser = await EntityModel.createNewUser(quaverId);
-
                 done(null, newUser);
             } catch (err) {
                 logging.error(err);
@@ -91,7 +83,7 @@ class Server {
                 cookie: {
                     secure: false,
                     maxAge: 30 * 24 * 60 * 60 * 1000, // 30d
-                    domain: ".icedynamix.moe",
+                    // domain: ".icedynamix.moe",
                 },
                 store: MongoStore.create({ mongoUrl: config.databaseUrl }),
             })

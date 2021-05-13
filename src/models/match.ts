@@ -1,4 +1,4 @@
-import { getModelForClass, modelOptions, prop, Ref } from "@typegoose/typegoose";
+import { getModelForClass, modelOptions, prop, Ref, DocumentType } from "@typegoose/typegoose";
 import config from "../config/config";
 import logging from "../config/logging";
 import Glicko from "../glicko/glicko";
@@ -9,19 +9,6 @@ import { Entity } from "./entity";
 const matchTimeout: number = 10 * 60 * 1000;
 const blacklistPastN: number = 10;
 const rdWindowFactor: number = 1;
-
-const modsAreInvalid = (mods: string) => {
-    for (const mod of mods.split(", ")) {
-        let rateModMatch = mod.match(/(\d\.\d+)x/);
-        if (rateModMatch && rateModMatch.length == 2) {
-            let rate = parseFloat(rateModMatch[0]);
-            if (rate < 1) return true;
-        } else {
-            if (!["Mirror", "None"].includes(mod)) return true;
-        }
-    }
-    return false;
-};
 
 @modelOptions({
     schemaOptions: { toObject: { getters: true }, toJSON: { virtuals: true } },
@@ -88,7 +75,7 @@ class Match {
         return newMatch;
     }
 
-    static async scanRecentPlays(entity: any) {
+    static async scanRecentPlays(entity: Entity) {
         let ongoingMatch = await Match.findOngoingMatch(entity);
         if (ongoingMatch == null) throw "No match ongoing";
 
@@ -110,7 +97,17 @@ class Match {
                 plays: recentPlays,
             };
 
-        let validModPlays = mapPlays.filter((play: any) => !modsAreInvalid(play.mods_string));
+        let validModPlays = mapPlays.filter((play: any) => {
+            let whitelisted = ["Mirror", "None"];
+            for (const mod of play.mods_string.split(", ")) {
+                let usedRate = 1;
+                let rateModMatch = mod.match(/(\d\.\d+)x/);
+                if (rateModMatch && rateModMatch.length == 2) usedRate = parseFloat(rateModMatch[0]);
+                if (usedRate < entity.mapRate) return false;
+                if (!rateModMatch && !whitelisted.includes(mod)) return false;
+            }
+            return true;
+        });
         if (validModPlays.length == 0)
             return {
                 success: false,
