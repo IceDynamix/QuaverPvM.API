@@ -82,7 +82,7 @@ class EntityDatapoint {
         const stats = (entities: EntityDpDoc[]) => {
             if (entities.length == 0) return { rank: -1, percentile: -1 };
             let higherRanked = entities.filter((dp) => dp.rating > entityDp.rating);
-            return { rank: higherRanked.length + 1, percentile: (higherRanked.length + 1) / entities.length };
+            return { rank: higherRanked.length + 1, percentile: higherRanked.length / (entities.length - 1) };
         };
 
         const overallStats = stats(ranked);
