@@ -141,10 +141,8 @@ class Match {
             response = { success: true, message: "Successfully submitted a loss" };
         } else {
             response = await MatchModel.scanRecentPlays(entity);
-            if (response.success) {
-                ongoingMatch.result = true;
-                ongoingMatch.save();
-            }
+            ongoingMatch.result = response.success ? true : null; // open for another scan
+            ongoingMatch.save();
         }
 
         if (response.success) await Glicko.updateFromResult(ongoingMatch);
