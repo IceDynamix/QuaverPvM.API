@@ -54,7 +54,7 @@ class Entity {
         return response.map;
     }
 
-    static addNewMaps(count: number) {
+    static async addNewMaps(count: number) {
         let validMaps = fs
             .readFileSync("./maps.tsv")
             .toString()
@@ -70,9 +70,12 @@ class Entity {
         let mapsToAdd = validMaps.slice(0, count);
 
         for (const [mapId, rate, diff] of mapsToAdd) {
-            EntityModel.createNewMap(parseInt(mapId), parseFloat(rate), parseFloat(diff))
-                .then((map) => logging.info(`Added ${mapId}`))
-                .catch((err) => logging.info(`Skipped ${mapId} (${err})`));
+            try {
+                await EntityModel.createNewMap(parseInt(mapId), parseFloat(rate), parseFloat(diff));
+                logging.info(`Added ${mapId}`);
+            } catch (err) {
+                logging.info(`Skipped ${mapId} (${err})`);
+            }
         }
     }
 }

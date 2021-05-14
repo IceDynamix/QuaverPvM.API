@@ -176,4 +176,4 @@ class GeneralDatapoint {
 const EntityDatapointModel = getModelForClass<typeof EntityDatapoint>(EntityDatapoint);
 const GeneralDatapointModel = getModelForClass<typeof GeneralDatapoint>(GeneralDatapoint);
 
-export { EntityDatapointModel, GeneralDatapointModel, EntityGlickoLink };
+export { EntityDatapoint, EntityDatapointModel, GeneralDatapointModel, EntityGlickoLink };
