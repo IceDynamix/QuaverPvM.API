@@ -130,7 +130,7 @@ class Match {
 
     public static async submitMatch(entity: Entity, resign: boolean = false) {
         let ongoingMatch = await Match.findOngoingMatch(entity);
-        if (ongoingMatch == null) return new Promise((resolve, reject) => resolve({ success: false, message: "No match ongoing" }));
+        if (ongoingMatch == null) return new Promise((resolve, reject) => resolve({ success: false, message: "No match ongoing? This shouldn't happen" }));
 
         // Set temporary result to prevent additional requests during scanning from having any effect
         ongoingMatch.result = false;
