@@ -38,7 +38,7 @@ class Match {
 
     public static async findOngoingMatch(entity: Entity) {
         let results = await MatchModel.find({
-            $and: [{ $or: [{ user: entity }, { map: entity }] }, { result: null }],
+            $and: [{ $or: [{ user: entity }, { map: entity }] }, { result: null }, { processed: false }],
         })
             .populate("user")
             .populate("map")
@@ -132,11 +132,12 @@ class Match {
         let ongoingMatch = await Match.findOngoingMatch(entity);
         if (ongoingMatch == null) return new Promise((resolve, reject) => resolve({ success: false, message: "No match ongoing" }));
 
-        let response: any;
+        // Set temporary result to prevent additional requests during scanning from having any effect
+        ongoingMatch.result = false;
+        ongoingMatch.save();
 
+        let response: any;
         if (resign) {
-            ongoingMatch.result = false;
-            ongoingMatch.save();
             response = { success: true, message: "Successfully submitted a loss" };
         } else {
             response = await MatchModel.scanRecentPlays(entity);
@@ -158,7 +159,7 @@ class Match {
 
     public static async cleanUpTimedOut() {
         logging.info("Cleaning up timed out matches");
-        let timedOut = await MatchModel.find({ result: null, endsAt: { $lt: new Date() } });
+        let timedOut = await MatchModel.find({ result: null, endsAt: { $lt: new Date() }, processed: false });
         for (let match of timedOut) Glicko.updateFromResult(match);
     }
 }

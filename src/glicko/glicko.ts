@@ -38,6 +38,8 @@ export default class Glicko {
     }
 
     public static async updateFromResult(match: DocumentType<Match>) {
+        if (match.processed == true) return;
+
         let user = await EntityModel.findById(match.user);
         if (!user) return;
         let map = await EntityModel.findById(match.map);
