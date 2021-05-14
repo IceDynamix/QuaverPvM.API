@@ -151,7 +151,7 @@ class Match {
     }
 
     static async fetchQuaverUserRecent(id: number | string, mode: number = 1): Promise<any> {
-        const response: any = await Requester.GET(`${config.apiBaseUrl}/v1/users/scores/recent?id=${id}&mode=${mode}`);
+        const response: any = await Requester.GET(`${config.apiBaseUrl}/v1/users/scores/recent?id=${id}&mode=${mode}&limit=5`);
         if (response.status != 200) return null;
         return response.scores;
     }
