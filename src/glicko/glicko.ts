@@ -72,15 +72,17 @@ export default class Glicko {
         let { rating: oldUserR, rd: oldUserRd, sigma: oldUserSigma } = userStats;
         let newUserDp = await EntityDatapointModel.saveEntityGlicko(userStats, glickoUser, false);
         logging.info(
-            `Rating ${oldUserR.toFixed(0)} -> ${newUserDp.rating.toFixed(0)} | RD ${oldUserRd.toFixed(0)} -> ${newUserDp.rd.toFixed(0)} | Sigma ${oldUserSigma.toFixed(4)} -> ${newUserDp.sigma.toFixed(
+            `Entity ${user._id} | Rating ${oldUserR.toFixed(0)} -> ${newUserDp.rating.toFixed(0)} | RD ${oldUserRd.toFixed(0)} -> ${newUserDp.rd.toFixed(0)} | Sigma ${oldUserSigma.toFixed(
                 4
-            )}`
+            )} -> ${newUserDp.sigma.toFixed(4)}`
         );
 
         let { rating: oldMapR, rd: oldMapRd, sigma: oldMapSigma } = mapStats;
         let newMapDp = await EntityDatapointModel.saveEntityGlicko(mapStats, glickoMap, false);
         logging.info(
-            `Rating ${oldMapR.toFixed(0)} -> ${newMapDp.rating.toFixed(0)} | RD ${oldMapRd.toFixed(0)} -> ${newMapDp.rd.toFixed(0)} | Sigma ${oldMapSigma.toFixed(4)} -> ${newMapDp.sigma.toFixed(4)}`
+            `Entity ${map._id} | Rating ${oldMapR.toFixed(0)} -> ${newMapDp.rating.toFixed(0)} | RD ${oldMapRd.toFixed(0)} -> ${newMapDp.rd.toFixed(0)} | Sigma ${oldMapSigma.toFixed(
+                4
+            )} -> ${newMapDp.sigma.toFixed(4)}`
         );
 
         let currentDps = await EntityDatapointModel.getAllCurrentDatapoints();
