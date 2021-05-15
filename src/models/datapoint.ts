@@ -80,7 +80,7 @@ class EntityDatapoint {
     // ranked and rankedOfType must be retrieved outside to ensure performance
     public static async saveEntityRanks(entityDp: EntityDpDoc, ranked: EntityDpDoc[], rankedUsers: EntityDpDoc[], rankedMaps: EntityDpDoc[]) {
         const stats = (entities: EntityDpDoc[]) => {
-            if (entities.length == 0) return { rank: -1, percentile: -1 };
+            if (entities.length == 0 || entityDp.rd > 100) return { rank: -1, percentile: -1 };
             let higherRanked = entities.filter((dp) => dp.rating > entityDp.rating);
             let rank = higherRanked.length + 1;
             let percentile = Math.max(0, Math.min(1, higherRanked.length / (entities.length - 1)));
