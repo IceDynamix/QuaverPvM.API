@@ -4,10 +4,10 @@ import logging from "../config/logging";
 import Glicko from "../glicko/glicko";
 import Requester from "../requester/requester";
 import { EntityDatapointModel } from "./datapoint";
-import { Entity } from "./entity";
+import { Entity, EntityModel } from "./entity";
 
 const matchTimeout: number = 10 * 60 * 1000;
-const blacklistPastN: number = 10;
+const dupeProtectLastN: number = 20;
 const rdWindowFactor: number = 1;
 
 @modelOptions({
@@ -53,24 +53,28 @@ class Match {
         let userStats = await EntityDatapointModel.getCurrentEntityDatapoint(user);
 
         let pastMatches = await Match.findEntityResults(user).exec();
-        let playedOpponents = pastMatches
+        let opponentIds = pastMatches
             .sort((a: any, b: any) => b.createdAt - a.createdAt)
             .map((r) => r.map)
-            .slice(0, blacklistPastN);
+            .slice(0, dupeProtectLastN);
 
-        let mapStats = await EntityDatapointModel.getAllCurrentDatapoints({ entityType: "map", _id: { $nin: playedOpponents } });
+        let opponents = await EntityModel.find({ entityType: "map", _id: { $in: opponentIds } }).exec();
+        let blacklistedQuaverIds = opponents.map((o) => o.quaverId);
 
-        mapStats = mapStats.filter((mapStats) => {
-            const upperBound = mapStats.rating + rdWindowFactor * mapStats.rd;
-            const lowerBound = mapStats.rating - rdWindowFactor * mapStats.rd;
+        let mapStats = await EntityDatapointModel.getAllCurrentDatapoints({ entityType: "map", quaverId: { $nin: blacklistedQuaverIds } });
+        mapStats = mapStats.filter((stats) => {
+            const upperBound = stats.rating + rdWindowFactor * stats.rd;
+            const lowerBound = stats.rating - rdWindowFactor * stats.rd;
             return userStats.rating! < upperBound && userStats.rating! > lowerBound;
         });
 
         if (mapStats.length == 0) throw "No maps in rating range";
+
         let map: Entity = mapStats[Math.floor(mapStats.length * Math.random())].entity as Entity;
         let createdAt = new Date();
         let endsAt = new Date(createdAt.getTime() + matchTimeout);
         let newMatch = await MatchModel.create({ user, map, result: null, createdAt, endsAt });
+
         setTimeout(MatchModel.cleanUpTimedOut, matchTimeout);
         return newMatch;
     }
