@@ -2,6 +2,7 @@ import { DocumentType, getModelForClass, modelOptions, prop, Ref, Severity } fro
 import { Player } from "go-glicko";
 import Glicko from "../glicko/glicko";
 import { Entity, EntityModel } from "./entity";
+import { MatchModel } from "./match";
 
 type EntityGlickoLink = { entity: Entity; glicko: Player };
 type EntityDpDoc = DocumentType<EntityDatapoint>;
@@ -131,12 +132,16 @@ class GeneralDatapoint {
     @prop({ default: 0 })
     public rankedMapCount!: number;
 
+    @prop({ default: 0 })
+    public matchCount!: number;
+
     @prop({ default: [] })
     public rankThresholds!: RankThreshold[];
 
     public static async createNewDatapoint(): Promise<DocumentType<GeneralDatapoint>> {
         const userCount = await EntityModel.find({ entityType: "user" }).countDocuments().exec();
         const mapCount = await EntityModel.find({ entityType: "map" }).countDocuments().exec();
+        const matchCount = await MatchModel.find({ processed: true }).countDocuments().exec();
 
         const ranked = (await EntityDatapointModel.getAllCurrentDatapoints()).filter((dp) => dp.rd <= 100);
 
@@ -168,6 +173,7 @@ class GeneralDatapoint {
         return await GeneralDatapointModel.create({
             userCount,
             mapCount,
+            matchCount,
             rankedUserCount: rankedUsers.length,
             rankedMapCount: rankedMaps.length,
             rankThresholds,
