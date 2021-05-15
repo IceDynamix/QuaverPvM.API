@@ -7,7 +7,7 @@ import express, { Request, Response } from "express";
 import session from "express-session";
 import passport from "passport";
 import config from "./config/config";
-import { midnightJob } from "./config/cron";
+import cron from "./config/cron";
 import Database from "./config/database";
 import logging from "./config/logging";
 import DatapointController from "./controller/datapoint";
@@ -64,7 +64,7 @@ class Server {
         // Connect to Mongo
         Database.connect();
 
-        midnightJob.start();
+        cron.start();
 
         // Request logging
         app.use((req, res, next) => {

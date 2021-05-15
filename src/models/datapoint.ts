@@ -114,7 +114,10 @@ type RankThreshold = {
     rating: Stats;
 };
 
-@modelOptions({ options: { allowMixed: Severity.ALLOW } })
+@modelOptions({
+    schemaOptions: { timestamps: true, toObject: { getters: true }, toJSON: { virtuals: true } },
+    options: { allowMixed: Severity.ALLOW },
+})
 class GeneralDatapoint {
     @prop({ default: 0 })
     public userCount!: number;
@@ -131,29 +134,26 @@ class GeneralDatapoint {
     @prop({ default: [] })
     public rankThresholds!: RankThreshold[];
 
-    public static async createNewDatapoint() {
+    public static async createNewDatapoint(): Promise<DocumentType<GeneralDatapoint>> {
         const userCount = await EntityModel.find({ entityType: "user" }).countDocuments().exec();
         const mapCount = await EntityModel.find({ entityType: "map" }).countDocuments().exec();
 
         const ranked = (await EntityDatapointModel.getAllCurrentDatapoints()).filter((dp) => dp.rd <= 100);
 
-        let rankedMaps = ranked.filter(async (dp) => {
-            let entity = await EntityModel.findById(dp.entity).exec();
-            return entity && entity.entityType == "map";
-        });
+        // Already populated
 
-        let rankedUsers = ranked.filter(async (dp) => {
-            let entity = await EntityModel.findById(dp.entity).exec();
-            return entity && entity.entityType == "user";
-        });
+        // @ts-ignore
+        let rankedMaps = ranked.filter((dp) => dp.entity.entityType == "map");
+        // @ts-ignore
+        let rankedUsers = ranked.filter((dp) => dp.entity.entityType == "user");
 
         const rankThresholds = Glicko.ranks().map((rank) => {
             let percentile = rank.percentile;
 
             let ranks = {
-                overall: ranked.length == 0 ? -1 : Math.floor((ranked.length - 1) * percentile),
-                map: rankedMaps.length == 0 ? -1 : Math.floor((rankedMaps.length - 1) * percentile),
-                user: rankedUsers.length == 0 ? -1 : Math.floor((rankedUsers.length - 1) * percentile),
+                overall: ranked.length == 0 ? -1 : 1 + Math.floor((ranked.length - 1) * percentile),
+                map: rankedMaps.length == 0 ? -1 : 1 + Math.floor((rankedMaps.length - 1) * percentile),
+                user: rankedUsers.length == 0 ? -1 : 1 + Math.floor((rankedUsers.length - 1) * percentile),
             };
 
             let rating = {
@@ -165,7 +165,7 @@ class GeneralDatapoint {
             return { rank: rank.rank, ranks, rating };
         });
 
-        GeneralDatapointModel.create({
+        return await GeneralDatapointModel.create({
             userCount,
             mapCount,
             rankedUserCount: rankedUsers.length,
