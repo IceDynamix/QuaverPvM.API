@@ -19,7 +19,7 @@ let newMapJob = new CronJob("0 0 0 * * *", () => {
         .then(() => logging.info("Finished running newMapJob cron"))
         .catch((err) => logging.error("Could not run newMapJob cron", err));
 });
-let generalDpJob = new CronJob("0 */30 * * *", () => {
+let generalDpJob = new CronJob("0 */2 * * *", () => {
     logging.info("Running generalDpJob cron");
     GeneralDatapointModel.createNewDatapoint()
         .then((dp) => logging.info("Finished running generalDpJob cron", dp))
@@ -30,6 +30,7 @@ function startCrons() {
     glickoJob.start();
     newMapJob.start();
     generalDpJob.start();
+    logging.info("Instantiated all cron jobs");
 }
 
 export { startCrons };
