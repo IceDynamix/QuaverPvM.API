@@ -75,10 +75,7 @@ class Match {
         return newMatch;
     }
 
-    static async scanRecentPlays(entity: Entity) {
-        let ongoingMatch = await Match.findOngoingMatch(entity);
-        if (ongoingMatch == null) throw "No match ongoing";
-
+    static async scanRecentPlays(ongoingMatch: DocumentType<Match>, entity: Entity) {
         let opponent: any = ongoingMatch.map;
         let plays = await MatchModel.fetchQuaverUserRecent(entity.quaverId!);
 
@@ -93,7 +90,7 @@ class Match {
         if (mapPlays.length == 0)
             return {
                 success: false,
-                message: `Found recent ${recentPlays.length} play(s), but none match the correct map`,
+                message: `Found ${recentPlays.length} recent play(s), but none match the correct map`,
                 plays: recentPlays,
             };
 
@@ -140,7 +137,7 @@ class Match {
         if (resign) {
             response = { success: true, message: "Successfully submitted a loss" };
         } else {
-            response = await MatchModel.scanRecentPlays(entity);
+            response = await MatchModel.scanRecentPlays(ongoingMatch, entity);
             ongoingMatch.result = response.success ? true : null; // open for another scan
             ongoingMatch.save();
         }
