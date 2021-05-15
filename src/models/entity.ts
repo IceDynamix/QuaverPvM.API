@@ -34,8 +34,8 @@ class Entity {
         const linear = (x1: number, x2: number, y1: number, y2: number) => ((diff - x1) / (x2 - x1)) * (y2 - y1) + y1;
 
         let ratingAdjustment: number;
-        if (diff >= 40) ratingAdjustment = 1000;
-        else if (diff >= 0) ratingAdjustment = linear(0, 40, -1000, 1000);
+        if (diff >= 50) ratingAdjustment = 1500;
+        else if (diff >= 0) ratingAdjustment = linear(0, 50, -1000, 1500);
         else ratingAdjustment = -1000;
 
         await EntityDatapointModel.createFreshDatapoint(newMap, 1500 + ratingAdjustment, 200);
