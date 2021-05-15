@@ -157,9 +157,9 @@ class GeneralDatapoint {
             };
 
             let rating = {
-                overall: ranks["overall"] == -1 ? -1 : ranked[ranks["overall"]].rating,
-                map: ranks["map"] == -1 ? -1 : rankedMaps[ranks["map"]].rating,
-                user: ranks["user"] == -1 ? -1 : rankedUsers[ranks["user"]].rating,
+                overall: ranks.overall == -1 ? -1 : ranked[ranks.overall - 1].rating,
+                map: ranks.map == -1 ? -1 : rankedMaps[ranks.map - 1].rating,
+                user: ranks.user == -1 ? -1 : rankedUsers[ranks.user - 1].rating,
             };
 
             return { rank: rank.rank, ranks, rating };
