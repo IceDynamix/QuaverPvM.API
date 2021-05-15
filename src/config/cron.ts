@@ -6,22 +6,21 @@ import { Entity } from "../models/entity";
 
 // seconds? minutes hours date month weekday
 
-class Cron {
-    static crons = [
-        new CronJob("00 00 00 * * *", () => {
-            Glicko.updateAllEmpty().then(() => logging.info("Ran glickoJob cron"));
-        }),
-        new CronJob("00 00 00 * * *", () => {
-            let n = 5;
-            Entity.addNewMaps(n).then(() => logging.info("Ran newMapJob cron"));
-        }),
-        new CronJob("00 30 * * * *", () => {
-            GeneralDatapointModel.createNewDatapoint().then((dp) => logging.info("Ran generalDpJob cron", dp));
-        }),
-    ];
-    public static start() {
-        Cron.crons.forEach((c) => c.start());
-    }
+let glickoJob = new CronJob("00 00 00 * * *", () => {
+    Glicko.updateAllEmpty().then(() => logging.info("Ran glickoJob cron"));
+});
+let newMapJob = new CronJob("00 00 00 * * *", () => {
+    let n = 5;
+    Entity.addNewMaps(n).then(() => logging.info("Ran newMapJob cron"));
+});
+let generalDpJob = new CronJob("00 */30 * * * *", () => {
+    GeneralDatapointModel.createNewDatapoint().then((dp) => logging.info("Ran generalDpJob cron", dp));
+});
+
+function startCrons() {
+    glickoJob.start();
+    newMapJob.start();
+    generalDpJob.start();
 }
 
-export default Cron;
+export { startCrons };
