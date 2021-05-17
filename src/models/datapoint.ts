@@ -77,54 +77,6 @@ class EntityDatapoint {
         });
     }
 
-    public static async saveFixed(entityDp: EntityDpDoc, fixed: boolean): Promise<EntityDpDoc> {
-        entityDp.timestamp = new Date();
-        entityDp.fixed = fixed;
-        if (fixed)
-        {
-            let newDoc = new EntityDatapointModel(entityDp.toObject());
-            newDoc._id = mongoose.Types.ObjectId();
-            return await newDoc.save();
-        }
-        return await entityDp.save();
-    }
-
-    public static assignGlicko(entityDp: EntityDpDoc, glickoPlayer: Player): EntityDpDoc {
-        entityDp.rating = glickoPlayer.Rating().R();
-        entityDp.rd = glickoPlayer.Rating().RD();
-        entityDp.sigma = glickoPlayer.Rating().Sigma();
-        return entityDp;
-    }
-
-    // if only updating after a match, then saveEntityGlicko and saveEntityRanks can be called sequentially
-    // but if updating a lot of users, then saveEntityGlicko must be called on all users first, and then saveEntityRanks
-    // ranked and rankedOfType must be retrieved outside to ensure performance
-    public static assignEntityRanks(entityDp: EntityDpDoc, ranked: EntityDpDoc[], rankedUsers: EntityDpDoc[], rankedMaps: EntityDpDoc[]) {
-        const stats = (entities: EntityDpDoc[]) => {
-            if (entities.length == 0 || entityDp.rd > 100) return {rank: -1, percentile: -1};
-            if (entities.length == 1)
-                return {rank: 1, percentile: 0};
-            let higherRanked = entities.filter((dp) => dp.rating > entityDp.rating);
-            let rank = higherRanked.length + 1;
-            let percentile = Math.max(0, Math.min(1, higherRanked.length / (entities.length - 1)));
-            return {rank, percentile};
-        };
-
-        const overallStats = stats(ranked);
-        entityDp.overallRank = overallStats.rank;
-        entityDp.overallPercentile = overallStats.percentile;
-
-        const userStats = stats(rankedUsers);
-        entityDp.userRank = userStats.rank;
-        entityDp.userPercentile = userStats.percentile;
-
-        const mapStats = stats(rankedMaps);
-        entityDp.mapRank = mapStats.rank;
-        entityDp.mapPercentile = mapStats.percentile;
-
-        return entityDp;
-    }
-
     public static async updateAllRanks() {
         let currentDps = await EntityDatapointModel.getAllCurrentDatapoints();
         let rankedDps = currentDps.filter((dp) => dp.rd <= 100);
@@ -133,14 +85,61 @@ class EntityDatapoint {
         let rankedMapDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "map");
 
         for (let dp of rankedDps) {
-            dp = EntityDatapointModel.assignEntityRanks(dp, rankedDps, rankedUserDps, rankedMapDps);
-            await EntityDatapointModel.saveFixed(dp, false);
+            await dp.assignEntityRanks(rankedDps, rankedUserDps, rankedMapDps).saveFixed(false);
         }
+    }
+
+    public async saveFixed(this: EntityDpDoc, fixed: boolean): Promise<EntityDpDoc> {
+        this.timestamp = new Date();
+        this.fixed = fixed;
+        if (fixed) {
+            let newDoc = new EntityDatapointModel(this.toObject());
+            newDoc._id = mongoose.Types.ObjectId();
+            return await newDoc.save();
+        }
+        return await this.save();
+    }
+
+    // if only updating after a match, then saveEntityGlicko and saveEntityRanks can be called sequentially
+    // but if updating a lot of users, then saveEntityGlicko must be called on all users first, and then saveEntityRanks
+
+    public assignGlicko(this: EntityDpDoc, glickoPlayer: Player): EntityDpDoc {
+        this.rating = glickoPlayer.Rating().R();
+        this.rd = glickoPlayer.Rating().RD();
+        this.sigma = glickoPlayer.Rating().Sigma();
+        return this;
+    }
+
+    // ranked and rankedOfType must be retrieved outside to ensure performance
+    public assignEntityRanks(this: EntityDpDoc, ranked: EntityDpDoc[], rankedUsers: EntityDpDoc[], rankedMaps: EntityDpDoc[]) {
+        const stats = (entities: EntityDpDoc[]) => {
+            if (entities.length == 0 || this.rd > 100) return {rank: -1, percentile: -1};
+            if (entities.length == 1)
+                return {rank: 1, percentile: 0};
+            let higherRanked = entities.filter((dp) => dp.rating > this.rating);
+            let rank = higherRanked.length + 1;
+            let percentile = Math.max(0, Math.min(1, higherRanked.length / (entities.length - 1)));
+            return {rank, percentile};
+        };
+
+        const overallStats = stats(ranked);
+        this.overallRank = overallStats.rank;
+        this.overallPercentile = overallStats.percentile;
+
+        const userStats = stats(rankedUsers);
+        this.userRank = userStats.rank;
+        this.userPercentile = userStats.percentile;
+
+        const mapStats = stats(rankedMaps);
+        this.mapRank = mapStats.rank;
+        this.mapPercentile = mapStats.percentile;
+
+        return this;
     }
 
     public static async snapshot() {
         let currentDps = await EntityDatapointModel.getAllCurrentDatapoints();
-        for (let dp of currentDps) await EntityDatapointModel.saveFixed(dp, true);
+        for (let dp of currentDps) await dp.saveFixed(true);
     }
 }
 

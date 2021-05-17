@@ -25,7 +25,7 @@ export default class Glicko {
             let { datapoint, glicko } = player;
             let oldRd = datapoint.rd;
             datapoint.rd = glicko.Rating().RD();
-            await EntityDatapointModel.saveFixed(datapoint, false);
+            await datapoint.saveFixed(false);
             logging.info(`${datapoint._id} | RD ${oldRd.toFixed(0)} -> ${datapoint.rd.toFixed(0)}`);
         }
 
@@ -66,8 +66,8 @@ export default class Glicko {
 
         let { rating: oldUserR, rd: oldUserRd, sigma: oldUserSigma } = userStats;
         let { rating: oldMapR, rd: oldMapRd, sigma: oldMapSigma } = mapStats;
-        userStats = EntityDatapointModel.assignGlicko(userStats, glickoUser);
-        mapStats = EntityDatapointModel.assignGlicko(mapStats, glickoMap);
+        userStats.assignGlicko(glickoUser);
+        mapStats.assignGlicko(glickoMap);
 
         logging.info(
             `Entity ${user._id} | Rating ${oldUserR.toFixed(0)} -> ${userStats.rating.toFixed(0)} | RD ${oldUserRd.toFixed(0)} -> ${userStats.rd.toFixed(0)} | Sigma ${oldUserSigma.toFixed(
@@ -80,8 +80,8 @@ export default class Glicko {
             )} -> ${mapStats.sigma.toFixed(4)}`
         );
 
-        await EntityDatapointModel.saveFixed(userStats, false);
-        await EntityDatapointModel.saveFixed(mapStats, false);
+        await userStats.saveFixed(false);
+        await mapStats.saveFixed(false);
         await EntityDatapointModel.updateAllRanks();
         match.processed = true;
         await match.save();
