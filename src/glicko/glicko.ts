@@ -92,7 +92,7 @@ export default class Glicko {
     }
 
     public static glickoToQr(glicko: number): number {
-        return 2.5 * Math.sqrt(0.005 * (glicko - 500));
+        return Math.sqrt((glicko-500)/1.28);
     }
 
     public static ranks() {
