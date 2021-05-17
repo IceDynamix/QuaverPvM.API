@@ -13,7 +13,7 @@ export default class Requester {
                 timeout: timeout,
             })
             .catch((e: { response: any }) => {
-                logging.error("Rrror during request", e);
+                logging.error("Error during request", e);
                 return e.response;
             });
 
