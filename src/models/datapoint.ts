@@ -32,6 +32,10 @@ class EntityDatapoint {
         return "d";
     }
 
+    get quaverRating(): number {
+        return Glicko.glickoToQr(this.rating);
+    }
+
     public static async getCurrentEntityDatapoint(entity: Entity): Promise<EntityDpDoc> {
         let results = await EntityDatapointModel.find({ entity }).sort({ timestamp: -1 }).populate("entity").exec();
         if (results.length > 0) return results[0];
