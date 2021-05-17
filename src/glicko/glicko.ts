@@ -2,12 +2,12 @@ import { MatchResult, Period, Player, Rating } from "go-glicko";
 import config from "../config/config";
 import logging from "../config/logging";
 import { EntityDatapointModel } from "../models/datapoint";
-import { Entity, EntityModel } from "../models/entity";
+import { EntityModel } from "../models/entity";
 import { Match } from "../models/match";
 import { DocumentType } from "@typegoose/typegoose";
 
 export default class Glicko {
-    public static async updateAllEmpty() {
+    public static async updateRd() {
         let datapoints = await EntityDatapointModel.getAllCurrentDatapoints();
 
         let players = datapoints.map((dp) => ({ datapoint: dp, glicko: new Player(new Rating(dp.rating, dp.rd, dp.sigma)) }));
@@ -24,17 +24,12 @@ export default class Glicko {
         for (let player of players) {
             let { datapoint, glicko } = player;
             let oldRd = datapoint.rd;
-            let newDatapoint = await EntityDatapointModel.saveEntityGlicko(datapoint, glicko, false);
-            logging.info(`${newDatapoint._id} | RD ${oldRd.toFixed(0)} -> ${newDatapoint.rd.toFixed(0)}`);
+            datapoint.rd = glicko.Rating().RD();
+            await EntityDatapointModel.saveFixed(datapoint, false);
+            logging.info(`${datapoint._id} | RD ${oldRd.toFixed(0)} -> ${datapoint.rd.toFixed(0)}`);
         }
 
-        let currentDps = await EntityDatapointModel.getAllCurrentDatapoints();
-        let rankedDps = currentDps.filter((dp) => dp.rd <= 100);
-        // Populated
-        let rankedUserDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "user");
-        let rankedMapDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "map");
-
-        for (let dp of rankedDps) await EntityDatapointModel.saveEntityRanks(dp, rankedDps, rankedUserDps, rankedMapDps);
+        await EntityDatapointModel.updateAllRanks();
     }
 
     public static async updateFromResult(match: DocumentType<Match>) {
@@ -70,30 +65,24 @@ export default class Glicko {
         else mapStats.wins++;
 
         let { rating: oldUserR, rd: oldUserRd, sigma: oldUserSigma } = userStats;
-        let newUserDp = await EntityDatapointModel.saveEntityGlicko(userStats, glickoUser, false);
-        logging.info(
-            `Entity ${user._id} | Rating ${oldUserR.toFixed(0)} -> ${newUserDp.rating.toFixed(0)} | RD ${oldUserRd.toFixed(0)} -> ${newUserDp.rd.toFixed(0)} | Sigma ${oldUserSigma.toFixed(
-                4
-            )} -> ${newUserDp.sigma.toFixed(4)}`
-        );
-
         let { rating: oldMapR, rd: oldMapRd, sigma: oldMapSigma } = mapStats;
-        let newMapDp = await EntityDatapointModel.saveEntityGlicko(mapStats, glickoMap, false);
+        userStats = EntityDatapointModel.assignGlicko(userStats, glickoUser);
+        mapStats = EntityDatapointModel.assignGlicko(mapStats, glickoMap);
+
         logging.info(
-            `Entity ${map._id} | Rating ${oldMapR.toFixed(0)} -> ${newMapDp.rating.toFixed(0)} | RD ${oldMapRd.toFixed(0)} -> ${newMapDp.rd.toFixed(0)} | Sigma ${oldMapSigma.toFixed(
+            `Entity ${user._id} | Rating ${oldUserR.toFixed(0)} -> ${userStats.rating.toFixed(0)} | RD ${oldUserRd.toFixed(0)} -> ${userStats.rd.toFixed(0)} | Sigma ${oldUserSigma.toFixed(
                 4
-            )} -> ${newMapDp.sigma.toFixed(4)}`
+            )} -> ${userStats.sigma.toFixed(4)}`
+        );
+        logging.info(
+            `Entity ${map._id} | Rating ${oldMapR.toFixed(0)} -> ${mapStats.rating.toFixed(0)} | RD ${oldMapRd.toFixed(0)} -> ${mapStats.rd.toFixed(0)} | Sigma ${oldMapSigma.toFixed(
+                4
+            )} -> ${mapStats.sigma.toFixed(4)}`
         );
 
-        let currentDps = await EntityDatapointModel.getAllCurrentDatapoints();
-        let rankedDps = currentDps.filter((dp) => dp.rd <= 100);
-
-        // Populated
-        let rankedUserDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "user");
-        let rankedMapDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "map");
-
-        await EntityDatapointModel.saveEntityRanks(newUserDp, rankedDps, rankedUserDps, rankedMapDps);
-        await EntityDatapointModel.saveEntityRanks(mapStats, rankedDps, rankedUserDps, rankedMapDps);
+        await EntityDatapointModel.saveFixed(userStats, false);
+        await EntityDatapointModel.saveFixed(mapStats, false);
+        await EntityDatapointModel.updateAllRanks();
         match.processed = true;
         await match.save();
     }

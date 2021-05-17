@@ -1,17 +1,16 @@
-import { DocumentType, getModelForClass, modelOptions, prop, Ref, Severity } from "@typegoose/typegoose";
-import { Player } from "go-glicko";
+import {DocumentType, getModelForClass, modelOptions, mongoose, prop, Ref, Severity} from "@typegoose/typegoose";
+import {Player} from "go-glicko";
 import Glicko from "../glicko/glicko";
-import { Entity, EntityModel } from "./entity";
-import { MatchModel } from "./match";
+import {Entity, EntityModel} from "./entity";
+import {MatchModel} from "./match";
 
-type EntityGlickoLink = { entity: Entity; glicko: Player };
 type EntityDpDoc = DocumentType<EntityDatapoint>;
 
 @modelOptions({
-    schemaOptions: { timestamps: true, toObject: { getters: true }, toJSON: { virtuals: true } },
+    schemaOptions: {timestamps: true, toObject: {getters: true}, toJSON: {virtuals: true}},
 })
 class EntityDatapoint {
-    @prop({ ref: "Entity" }) public entity!: Ref<Entity>; // No idea why it doesn't work without using a string
+    @prop({ref: "Entity"}) public entity!: Ref<Entity>; // No idea why it doesn't work without using a string
     @prop() public timestamp!: Date;
     @prop() public rating!: number;
     @prop() public rd!: number;
@@ -68,28 +67,37 @@ class EntityDatapoint {
         });
     }
 
-    public static async saveEntityGlicko(entityDp: EntityDpDoc, glickoPlayer: Player, fixed: boolean) {
+    public static async saveFixed(entityDp: EntityDpDoc, fixed: boolean): Promise<EntityDpDoc> {
         entityDp.timestamp = new Date();
+        entityDp.fixed = fixed;
+        if (fixed)
+        {
+            let newDoc = new EntityDatapointModel(entityDp.toObject());
+            newDoc._id = mongoose.Types.ObjectId();
+            return await newDoc.save();
+        }
+        return await entityDp.save();
+    }
+
+    public static assignGlicko(entityDp: EntityDpDoc, glickoPlayer: Player): EntityDpDoc {
         entityDp.rating = glickoPlayer.Rating().R();
         entityDp.rd = glickoPlayer.Rating().RD();
         entityDp.sigma = glickoPlayer.Rating().Sigma();
-
-        // Create copy of document after saving
-        if (fixed || entityDp.fixed) delete entityDp._id;
-        entityDp.fixed = fixed;
-        return await entityDp.save();
+        return entityDp;
     }
 
     // if only updating after a match, then saveEntityGlicko and saveEntityRanks can be called sequentially
     // but if updating a lot of users, then saveEntityGlicko must be called on all users first, and then saveEntityRanks
     // ranked and rankedOfType must be retrieved outside to ensure performance
-    public static async saveEntityRanks(entityDp: EntityDpDoc, ranked: EntityDpDoc[], rankedUsers: EntityDpDoc[], rankedMaps: EntityDpDoc[]) {
+    public static assignEntityRanks(entityDp: EntityDpDoc, ranked: EntityDpDoc[], rankedUsers: EntityDpDoc[], rankedMaps: EntityDpDoc[]) {
         const stats = (entities: EntityDpDoc[]) => {
-            if (entities.length == 0 || entityDp.rd > 100) return { rank: -1, percentile: -1 };
+            if (entities.length == 0 || entityDp.rd > 100) return {rank: -1, percentile: -1};
+            if (entities.length == 1)
+                return {rank: 1, percentile: 0};
             let higherRanked = entities.filter((dp) => dp.rating > entityDp.rating);
             let rank = higherRanked.length + 1;
             let percentile = Math.max(0, Math.min(1, higherRanked.length / (entities.length - 1)));
-            return { rank, percentile };
+            return {rank, percentile};
         };
 
         const overallStats = stats(ranked);
@@ -104,7 +112,25 @@ class EntityDatapoint {
         entityDp.mapRank = mapStats.rank;
         entityDp.mapPercentile = mapStats.percentile;
 
-        await entityDp.save();
+        return entityDp;
+    }
+
+    public static async updateAllRanks() {
+        let currentDps = await EntityDatapointModel.getAllCurrentDatapoints();
+        let rankedDps = currentDps.filter((dp) => dp.rd <= 100);
+        // Populated
+        let rankedUserDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "user");
+        let rankedMapDps = rankedDps.filter((dp) => (dp.entity as Entity).entityType == "map");
+
+        for (let dp of rankedDps) {
+            dp = EntityDatapointModel.assignEntityRanks(dp, rankedDps, rankedUserDps, rankedMapDps);
+            await EntityDatapointModel.saveFixed(dp, false);
+        }
+    }
+
+    public static async snapshot() {
+        let currentDps = await EntityDatapointModel.getAllCurrentDatapoints();
+        for (let dp of currentDps) await EntityDatapointModel.saveFixed(dp, true);
     }
 }
 
@@ -188,4 +214,4 @@ class GeneralDatapoint {
 const EntityDatapointModel = getModelForClass<typeof EntityDatapoint>(EntityDatapoint);
 const GeneralDatapointModel = getModelForClass<typeof GeneralDatapoint>(GeneralDatapoint);
 
-export { EntityDatapoint, EntityDatapointModel, GeneralDatapointModel, EntityGlickoLink };
+export {EntityDatapoint, EntityDatapointModel, GeneralDatapointModel};
