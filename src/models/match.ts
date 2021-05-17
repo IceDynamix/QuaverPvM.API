@@ -1,24 +1,24 @@
-import { getModelForClass, modelOptions, prop, Ref, DocumentType } from "@typegoose/typegoose";
+import {DocumentType, getModelForClass, modelOptions, prop, Ref} from "@typegoose/typegoose";
 import config from "../config/config";
 import logging from "../config/logging";
 import Glicko from "../glicko/glicko";
 import Requester from "../requester/requester";
-import { EntityDatapointModel } from "./datapoint";
-import { Entity, EntityModel } from "./entity";
+import {EntityDatapointModel} from "./datapoint";
+import {Entity, EntityModel} from "./entity";
 
 const matchTimeout: number = 10 * 60 * 1000;
 const dupeProtectLastN: number = 20;
 const rdWindowFactor: number = 1;
 
 @modelOptions({
-    schemaOptions: { toObject: { getters: true }, toJSON: { virtuals: true } },
+    schemaOptions: {toObject: {getters: true}, toJSON: {getters: true}},
 })
 class Match {
-    @prop({ ref: "Entity" }) public user!: Ref<Entity>; // No idea why it doesn't work without using a string
-    @prop({ ref: "Entity" }) public map!: Ref<Entity>;
-    @prop({ default: false }) public result!: boolean | null; // from the perspective of entity1, null = ongoing
-    @prop({ default: false }) public processed?: boolean; // Was used to update player ratings
-    @prop({ default: new Date() }) public createdAt!: Date;
+    @prop({ref: "Entity"}) public user!: Ref<Entity>; // No idea why it doesn't work without using a string
+    @prop({ref: "Entity"}) public map!: Ref<Entity>;
+    @prop({default: false}) public result!: boolean | null; // from the perspective of entity1, null = ongoing
+    @prop({default: false}) public processed?: boolean; // Was used to update player ratings
+    @prop({default: new Date()}) public createdAt!: Date;
     @prop() public endsAt!: Date;
 
     get submissable() {
@@ -131,11 +131,11 @@ class Match {
 
     public static async submitMatch(entity: Entity, resign: boolean = false) {
         let ongoingMatch = await Match.findOngoingMatch(entity);
-        if (ongoingMatch == null) return new Promise((resolve, reject) => resolve({ success: false, message: "No match ongoing? This shouldn't happen" }));
+        if (ongoingMatch == null) return {success: false, message: "No match ongoing? This shouldn't happen"};
 
         // Set temporary result to prevent additional requests during scanning from having any effect
         ongoingMatch.result = false;
-        ongoingMatch.save();
+        await ongoingMatch.save();
 
         let response: any;
         if (resign) {
@@ -143,11 +143,11 @@ class Match {
         } else {
             response = await MatchModel.scanRecentPlays(ongoingMatch, entity);
             ongoingMatch.result = response.success ? true : null; // open for another scan
-            ongoingMatch.save();
+            await ongoingMatch.save();
         }
 
         if (response.success) await Glicko.updateFromResult(ongoingMatch);
-        return new Promise((resolve, reject) => resolve(response));
+        return response;
     }
 
     static async fetchQuaverUserRecent(id: number | string, mode: number = 1): Promise<any> {
@@ -159,7 +159,7 @@ class Match {
     public static async cleanUpTimedOut() {
         logging.info("Cleaning up timed out matches");
         let timedOut = await MatchModel.find({ result: null, endsAt: { $lt: new Date() }, processed: false });
-        for (let match of timedOut) Glicko.updateFromResult(match);
+        for (let match of timedOut) await Glicko.updateFromResult(match);
     }
 }
 

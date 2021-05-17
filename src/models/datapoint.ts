@@ -7,7 +7,7 @@ import {MatchModel} from "./match";
 type EntityDpDoc = DocumentType<EntityDatapoint>;
 
 @modelOptions({
-    schemaOptions: {timestamps: true, toObject: {getters: true}, toJSON: {virtuals: true}},
+    schemaOptions: {timestamps: true, toObject: {getters: true}, toJSON: {getters: true}},
 })
 class EntityDatapoint {
     @prop({ref: "Entity"}) public entity!: Ref<Entity>; // No idea why it doesn't work without using a string
@@ -36,7 +36,7 @@ class EntityDatapoint {
     }
 
     public static async getCurrentEntityDatapoint(entity: Entity): Promise<EntityDpDoc> {
-        let results = await EntityDatapointModel.find({ entity }).sort({ timestamp: -1 }).populate("entity").exec();
+        let results = await EntityDatapointModel.find({entity}).sort({timestamp: -1}).populate("entity").exec();
         if (results.length > 0) return results[0];
         return await EntityDatapointModel.createFreshDatapoint(entity);
     }

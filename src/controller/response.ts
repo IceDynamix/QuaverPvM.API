@@ -2,9 +2,9 @@ import { Response } from "express";
 import logging from "../config/logging";
 
 export default class ResponseHandler {
-    public static async handle(promise: Promise<Array<any> | any>, res: Response, status: number = 200) {
+    public static async handle(toHandle: any, res: Response, status: number = 200) {
         try {
-            let result = await promise;
+            let result = await Promise.resolve(toHandle);
             res.status(status).json(result);
         } catch (err) {
             ResponseHandler.handleError(err, res);

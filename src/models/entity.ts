@@ -1,17 +1,16 @@
-import { DocumentType, getModelForClass, modelOptions, prop, Severity } from "@typegoose/typegoose";
-import config from "../config/config";
-import Requester from "../requester/requester";
-import { EntityDatapointModel } from "./datapoint";
+import {DocumentType, getModelForClass, modelOptions, prop, Severity} from "@typegoose/typegoose";
+import {EntityDatapointModel} from "./datapoint";
 import fs from "fs";
 import logging from "../config/logging";
 import Glicko from "../glicko/glicko";
+import {QuaverDataModel} from "./quaverData";
 
 type EntityType = "map" | "user";
 type EntityDoc = DocumentType<Entity>;
 
 @modelOptions({
-    schemaOptions: { timestamps: true, toObject: { getters: true }, toJSON: { virtuals: true } },
-    options: { allowMixed: Severity.ALLOW },
+    schemaOptions: {timestamps: true, toObject: {getters: true}, toJSON: {getters: true}},
+    options: {allowMixed: Severity.ALLOW},
 })
 class Entity {
     @prop() public entityType!: EntityType;
@@ -19,9 +18,9 @@ class Entity {
     @prop() public mapRate?: number;
 
     public static async createNewUser(quaverId: number): Promise<EntityDoc> {
-        let quaverUser = await Entity.fetchQuaverUser(quaverId, 0);
+        let quaverUser = (await QuaverDataModel.getQuaverData(quaverId, "user")).quaverData;
         if (!quaverUser) throw "Quaver user does not exist";
-        let newUser = await EntityModel.create({ quaverId, entityType: "user" });
+        let newUser = await EntityModel.create({quaverId, entityType: "user", quaverData: quaverUser});
 
         let overallRating = quaverUser.keys4?.stats?.overall_performance_rating;
         // `sum 0.95^x from 0 to inf` converges to 20
@@ -37,7 +36,8 @@ class Entity {
     }
 
     public static async createNewMap(quaverId: number, mapRate: number, diff: number): Promise<EntityDoc> {
-        let newMap = await EntityModel.create({ quaverId, entityType: "map", mapRate });
+        await QuaverDataModel.getQuaverData(quaverId, "map");
+        let newMap = await EntityModel.create({quaverId, entityType: "map", mapRate});
 
         // Apply rating scaling roughly depending on difficulty
         let rating = Glicko.qrToGlicko(diff);
@@ -45,16 +45,12 @@ class Entity {
         return newMap;
     }
 
-    static async fetchQuaverUser(id: number | string, mode: number): Promise<any> {
-        const response: any = await Requester.GET(`${config.apiBaseUrl}/v1/users/full/${id}`);
-        if (response.status != 200) return null;
-        return response.user;
+    public async getQuaverData() {
+        return await QuaverDataModel.getQuaverData(this.quaverId, this.entityType);
     }
 
-    static async fetchQuaverMap(id: number | string): Promise<any> {
-        const response: any = await Requester.GET(`${config.apiBaseUrl}/v1/maps/${id}`);
-        if (response.status != 200) return null;
-        return response.map;
+    public async projectQuaverData(this: EntityDoc) {
+        return {...this.toObject(), quaverData: (await this.getQuaverData()).toObject().quaverData};
     }
 
     static async addNewMaps(count: number) {
