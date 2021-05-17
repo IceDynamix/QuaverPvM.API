@@ -48,6 +48,16 @@ class EntityDatapoint {
         return allDatapoints.sort((a, b) => b.rating - a.rating);
     }
 
+    public static async getAllCurrentRankedDatapoints(entityFilter: any = {}): Promise<EntityDpDoc[]> {
+        let allEntities = await EntityModel.find(entityFilter).exec();
+        let allDatapoints: EntityDpDoc[] = [];
+        for (const entity of allEntities) {
+            let dp = await EntityDatapointModel.getCurrentEntityDatapoint(entity);
+            if (dp.rd < 100) allDatapoints.push(dp);
+        }
+        return allDatapoints.sort((a, b) => b.rating - a.rating);
+    }
+
     public static async createFreshDatapoint(entity: Entity, rating: number = 1500, rd: number = 350): Promise<EntityDpDoc> {
         return await EntityDatapointModel.create({
             entity,
