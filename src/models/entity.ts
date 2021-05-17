@@ -4,6 +4,7 @@ import Requester from "../requester/requester";
 import { EntityDatapointModel } from "./datapoint";
 import fs from "fs";
 import logging from "../config/logging";
+import Glicko from "../glicko/glicko";
 
 type EntityType = "map" | "user";
 type EntityDoc = DocumentType<Entity>;
@@ -29,16 +30,8 @@ class Entity {
         let newMap = await EntityModel.create({ quaverId, entityType: "map", mapRate });
 
         // Apply rating scaling roughly depending on difficulty
-        // The spread of all difficulty values in the total set of maps is roughly linear
-
-        const linear = (x1: number, x2: number, y1: number, y2: number) => ((diff - x1) / (x2 - x1)) * (y2 - y1) + y1;
-
-        let ratingAdjustment: number;
-        if (diff >= 50) ratingAdjustment = 1500;
-        else if (diff >= 0) ratingAdjustment = linear(0, 50, -1000, 1500);
-        else ratingAdjustment = -1000;
-
-        await EntityDatapointModel.createFreshDatapoint(newMap, 1500 + ratingAdjustment, 200);
+        let rating = Glicko.qrToGlicko(diff);
+        await EntityDatapointModel.createFreshDatapoint(newMap, rating, 200);
         return newMap;
     }
 
