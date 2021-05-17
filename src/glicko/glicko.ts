@@ -98,13 +98,12 @@ export default class Glicko {
         await match.save();
     }
 
-    // https://www.smogon.com/forums/threads/gxe-glixare-a-much-better-way-of-estimating-a-players-overall-rating-than-shoddys-cre.51169/
-    public static glixare(rating: number, rd: number): number {
-        return 25000 * (1 / (1 + Math.pow(10, ((1500 - rating) * Math.PI) / Math.sqrt(3 * Math.LN10 * Math.LN10 * rd * rd + 2500 * (64 * Math.PI * Math.PI + 147 * Math.LN10 * Math.LN10)))));
+    public static qrToGlicko(qr: number): number {
+        return 1.28 * qr * qr + 500;
     }
 
-    public static gxeToGlicko(gxe: number, rd: number): number {
-        return -((Math.log10(1 / gxe - 1) * Math.sqrt(3 * Math.LN10 * Math.LN10 * rd * rd + 2500 * (64 * Math.PI * Math.PI + 147 * Math.LN10 * Math.LN10))) / Math.PI - 1500);
+    public static glickoToQr(glicko: number): number {
+        return 2.5 * Math.sqrt(0.005 * (glicko - 500));
     }
 
     public static ranks() {
