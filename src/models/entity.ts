@@ -22,7 +22,17 @@ class Entity {
         let quaverUser = await Entity.fetchQuaverUser(quaverId, 0);
         if (!quaverUser) throw "Quaver user does not exist";
         let newUser = await EntityModel.create({ quaverId, entityType: "user" });
-        await EntityDatapointModel.createFreshDatapoint(newUser);
+
+        let overallRating = quaverUser.keys4?.stats?.overall_performance_rating;
+        // `sum 0.95^x from 0 to inf` converges to 20
+        // This means the weighted average of top plays is overallRating / 20
+        let rating = overallRating ? Glicko.qrToGlicko(overallRating / 20) : 1500;
+
+        // Reduce rd up to 150 when user has up to 500 play count
+        let playCount = quaverUser.keys4?.stats?.play_count;
+        let rd = playCount ? 350 - 150 * (Math.min(500, playCount) / 500) : 350;
+
+        await EntityDatapointModel.createFreshDatapoint(newUser, rating, rd);
         return newUser;
     }
 
