@@ -64,7 +64,7 @@ class Match {
         mapStats = mapStats.filter((stats) => {
             const upperBound = Glicko.qrToGlicko(Glicko.glickoToQr(stats.rating) + 2);
             const lowerBound = Glicko.qrToGlicko(Glicko.glickoToQr(stats.rating) - 2);
-            return userStats.rating! < upperBound && userStats.rating! > lowerBound;
+            return userStats.rating < upperBound && userStats.rating > lowerBound;
         });
 
         if (mapStats.length == 0) throw "No maps in rating range";

@@ -25,7 +25,9 @@ class Entity {
         let overallRating = quaverUser.keys4?.stats?.overall_performance_rating;
         // `sum 0.95^x from 0 to inf` converges to 20
         // This means the weighted average of top plays is overallRating / 20
-        let rating = overallRating ? Glicko.qrToGlicko(overallRating / 20) : 1500;
+        // We want to lower it a bit though so they don't get overwhelmed with the
+        // first few maps, so we reduce the initial rating by around 10%
+        let rating = overallRating ? Glicko.qrToGlicko(0.9 * overallRating / 20) : 1500;
 
         // Reduce rd up to 150 when user has up to 500 play count
         let playCount = quaverUser.keys4?.stats?.play_count;
