@@ -18,9 +18,10 @@ class Entity {
     @prop() public mapRate?: number;
 
     public static async createNewUser(quaverId: number): Promise<EntityDoc> {
+        if (await EntityModel.findOne({quaverId, entityType: "user"})) throw "User already exists";
         let quaverUser = (await QuaverDataModel.getQuaverData(quaverId, "user")).quaverData;
         if (!quaverUser) throw "Quaver user does not exist";
-        let newUser = await EntityModel.create({quaverId, entityType: "user", quaverData: quaverUser});
+        let newUser = await EntityModel.create({quaverId, entityType: "user"});
 
         let overallRating = quaverUser.keys4?.stats?.overall_performance_rating;
         // `sum 0.95^x from 0 to inf` converges to 20
@@ -38,6 +39,7 @@ class Entity {
     }
 
     public static async createNewMap(quaverId: number, mapRate: number, diff: number): Promise<EntityDoc> {
+        if (await EntityModel.findOne({quaverId, mapRate, entityType: "map"})) throw "Map already exists";
         await QuaverDataModel.getQuaverData(quaverId, "map");
         let newMap = await EntityModel.create({quaverId, entityType: "map", mapRate});
 
