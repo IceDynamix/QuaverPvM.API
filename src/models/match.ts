@@ -7,7 +7,7 @@ import {EntityDatapointModel} from "./datapoint";
 import {Entity, EntityModel} from "./entity";
 
 const matchTimeout: number = 10 * 60 * 1000;
-const dupeProtectLastN: number = 20;
+const dupeProtectLastN: number = 10;
 const rdWindowFactor: number = 1;
 
 @modelOptions({
