@@ -28,7 +28,6 @@ class QuaverData {
         let result = await QuaverDataModel.findOne({quaverId, entityType}).exec();
         if (result && result.quaverData != null) {
             let cachedUntil = result.cachedUntil;
-            console.log(cachedUntil)
             if (!cachedUntil || new Date() < cachedUntil) return result;
         }
         // data is not cached
