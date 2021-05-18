@@ -8,7 +8,6 @@ import {Entity, EntityModel} from "./entity";
 
 const matchTimeout: number = 10 * 60 * 1000;
 const dupeProtectLastN: number = 10;
-const rdWindowFactor: number = 1;
 
 @modelOptions({
     schemaOptions: {toObject: {getters: true}, toJSON: {getters: true}},
@@ -63,8 +62,8 @@ class Match {
 
         let mapStats = await EntityDatapointModel.getAllCurrentDatapoints({ entityType: "map", quaverId: { $nin: blacklistedQuaverIds } });
         mapStats = mapStats.filter((stats) => {
-            const upperBound = stats.rating + rdWindowFactor * stats.rd;
-            const lowerBound = stats.rating - rdWindowFactor * stats.rd;
+            const upperBound = Glicko.qrToGlicko(Glicko.glickoToQr(stats.rating) + 2);
+            const lowerBound = Glicko.qrToGlicko(Glicko.glickoToQr(stats.rating) - 2);
             return userStats.rating! < upperBound && userStats.rating! > lowerBound;
         });
 
