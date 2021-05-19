@@ -4,10 +4,11 @@ import logging from "../config/logging";
 import Glicko from "../glicko/glicko";
 import Requester from "../requester/requester";
 import {EntityDatapointModel} from "./datapoint";
-import {Entity, EntityModel} from "./entity";
+import {Entity, EntityDoc, EntityModel} from "./entity";
 
 const matchTimeout: number = 10 * 60 * 1000;
 const dupeProtectLastN: number = 10;
+const qrMatchmakingWindow: number = 1;
 
 @modelOptions({
     schemaOptions: {toObject: {getters: true}, toJSON: {getters: true}},
@@ -48,7 +49,7 @@ class Match {
         return null;
     }
 
-    public static async matchmaker(user: Entity) {
+    public static async matchmaker(user: EntityDoc) {
         let userStats = await EntityDatapointModel.getCurrentEntityDatapoint(user);
 
         let pastMatches = await Match.findEntityResults(user).exec();
@@ -57,23 +58,27 @@ class Match {
             .map((r) => r.map)
             .slice(0, dupeProtectLastN);
 
-        let opponents = await EntityModel.find({ entityType: "map", _id: { $in: opponentIds } }).exec();
+        let opponents = await EntityModel.find({entityType: "map", _id: {$in: opponentIds}}).exec();
         let blacklistedQuaverIds = opponents.map((o) => o.quaverId);
 
-        let mapStats = await EntityDatapointModel.getAllCurrentDatapoints({ entityType: "map", quaverId: { $nin: blacklistedQuaverIds } });
-        mapStats = mapStats.filter((stats) => {
-            const qrDiff = 1;
-            const upperBound = Glicko.qrToGlicko(Glicko.glickoToQr(stats.rating) + qrDiff);
-            const lowerBound = Glicko.qrToGlicko(Glicko.glickoToQr(stats.rating) - qrDiff);
-            return userStats.rating < upperBound && userStats.rating > lowerBound;
+        let mapStats = await EntityDatapointModel.getAllCurrentDatapoints({
+            entityType: "map",
+            quaverId: {$nin: blacklistedQuaverIds}
         });
 
-        if (mapStats.length == 0) throw "No maps in rating range";
+        const upperBound = Glicko.qrToGlicko(Glicko.glickoToQr(userStats.rating) + qrMatchmakingWindow);
+        const lowerBound = Glicko.qrToGlicko(Glicko.glickoToQr(userStats.rating) - qrMatchmakingWindow);
+        mapStats = mapStats.filter((stats) => stats.rating < upperBound && stats.rating > lowerBound);
+
+        if (mapStats.length == 0) {
+            logging.error(`No maps in rating range ${lowerBound}-${upperBound}`, userStats);
+            throw "No maps in rating range";
+        }
 
         let map: Entity = mapStats[Math.floor(mapStats.length * Math.random())].entity as Entity;
         let createdAt = new Date();
         let endsAt = new Date(createdAt.getTime() + matchTimeout);
-        let newMatch = await MatchModel.create({ user, map, result: null, createdAt, endsAt });
+        let newMatch = await MatchModel.create({user, map, result: null, createdAt, endsAt});
 
         setTimeout(MatchModel.cleanUpTimedOut, matchTimeout);
         return newMatch;
