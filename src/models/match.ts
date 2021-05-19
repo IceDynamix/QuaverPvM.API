@@ -62,8 +62,9 @@ class Match {
 
         let mapStats = await EntityDatapointModel.getAllCurrentDatapoints({ entityType: "map", quaverId: { $nin: blacklistedQuaverIds } });
         mapStats = mapStats.filter((stats) => {
-            const upperBound = Glicko.qrToGlicko(Glicko.glickoToQr(stats.rating) + 2);
-            const lowerBound = Glicko.qrToGlicko(Glicko.glickoToQr(stats.rating) - 2);
+            const qrDiff = 1;
+            const upperBound = Glicko.qrToGlicko(Glicko.glickoToQr(stats.rating) + qrDiff);
+            const lowerBound = Glicko.qrToGlicko(Glicko.glickoToQr(stats.rating) - qrDiff);
             return userStats.rating < upperBound && userStats.rating > lowerBound;
         });
 
