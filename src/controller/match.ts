@@ -1,39 +1,36 @@
 import {Match, MatchModel} from "../models/match";
 import {Request, Response} from "express";
-import ResponseHandler from "./response";
 import {Entity, EntityDoc, EntityModel} from "../models/entity";
 
 export default class MatchController {
-    public static async GET(req: Request, res: Response) {
+    public static async GET(req: Request, res: Response, next) {
         if (!req.user) {
             res.status(401).json({message: "Not logged in"});
             return;
         }
         let loggedIn = req.user as EntityDoc;
         let match = await MatchModel.findOngoingMatch(loggedIn);
-        if (!match) return await ResponseHandler.handle({match: null, entities: []}, res, 200);
+        if (!match) return res.json({match: null, entities: []})
         let user = await loggedIn.projectQuaverData();
         let map = await (match.map as EntityDoc).projectQuaverData();
-        return await ResponseHandler.handle({match, entities: [user, map]}, res, 200);
+        return res.json({match, entities: [user, map]})
     }
 
-    public static async POST(req: Request, res: Response) {
+    public static async POST(req: Request, res: Response, next) {
         if (!req.user) {
             res.status(401).json({message: "Not logged in"});
             return;
         }
+
         let loggedIn = req.user as EntityDoc;
         let match = await MatchModel.findOngoingMatch(loggedIn);
-
         if (!match) match = await MatchModel.matchmaker(loggedIn);
-
         let user = await loggedIn.projectQuaverData();
         let map = await (match.map as EntityDoc).projectQuaverData();
-
-        await ResponseHandler.handle({match, entities: [user, map]}, res);
+        return res.json({match, entities: [user, map]})
     }
 
-    public static async resultsGET(req: Request, res: Response) {
+    public static async resultsGET(req: Request, res: Response, next) {
         const {id, entity} = req.query;
 
         let results: Match[];
@@ -41,7 +38,7 @@ export default class MatchController {
         else if (entity) {
             let entityObj = await EntityModel.findById(entity).exec();
             if (!entityObj) {
-                return await ResponseHandler.handle([], res);
+                return res.json([]);
             } else {
                 let ongoing = await MatchModel.findOngoingMatch(entityObj);
                 results = await MatchModel.findEntityResults(entityObj, ongoing);
@@ -52,15 +49,16 @@ export default class MatchController {
         results.forEach(r => entities.push((r.user as EntityDoc), (r.map as EntityDoc)));
         let projectedEntities = await Promise.all(entities.map(e => e.projectQuaverData()));
 
-        await ResponseHandler.handle({matches: results, entities: projectedEntities}, res);
+        return res.json({matches: results, entities: projectedEntities});
     }
 
-    public static async resultsPOST(req: Request, res: Response) {
+    public static async resultsPOST(req: Request, res: Response, next) {
         if (!req.user) {
             res.status(401).json({ message: "Not logged in" });
             return;
         }
         const { giveUp } = req.body;
-        await ResponseHandler.handle(MatchModel.submitMatch(req.user as Entity, giveUp), res);
+        const response = await MatchModel.submitMatch(req.user as Entity, giveUp);
+        return res.json(response);
     }
 }

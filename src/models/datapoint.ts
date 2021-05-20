@@ -100,6 +100,14 @@ class EntityDatapoint {
         return await this.save();
     }
 
+    public static async randomInRange(min: number, max: number) {
+        const dps = await EntityDatapointModel.getAllCurrentDatapoints({entityType: "map"});
+        const inRange = dps.filter(dp => dp.rating > min && dp.rating < max);
+        if (inRange.length == 0) throw `No maps in rating range ${min}-${max}`;
+        const random = Math.floor(Math.random() * (inRange.length - 1));
+        return inRange[random];
+    }
+
     // if only updating after a match, then saveEntityGlicko and saveEntityRanks can be called sequentially
     // but if updating a lot of users, then saveEntityGlicko must be called on all users first, and then saveEntityRanks
 
@@ -114,8 +122,7 @@ class EntityDatapoint {
     public assignEntityRanks(this: EntityDpDoc, ranked: EntityDpDoc[], rankedUsers: EntityDpDoc[], rankedMaps: EntityDpDoc[]) {
         const stats = (entities: EntityDpDoc[]) => {
             if (entities.length == 0 || this.rd > 100) return {rank: -1, percentile: -1};
-            if (entities.length == 1)
-                return {rank: 1, percentile: 0};
+            if (entities.length == 1) return {rank: 1, percentile: 0};
             let higherRanked = entities.filter((dp) => dp.rating > this.rating);
             let rank = higherRanked.length + 1;
             let percentile = Math.max(0, Math.min(1, higherRanked.length / (entities.length - 1)));

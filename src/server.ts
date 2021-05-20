@@ -1,20 +1,21 @@
-require("dotenv").config();
-
+import Middleware from "./controller/middleware";
 import axios from "axios";
 import MongoStore from "connect-mongo";
 import cors from "cors";
-import express, { Request, Response } from "express";
+import express, {Request, Response} from "express";
 import session from "express-session";
 import passport from "passport";
 import config from "./config/config";
-import { startCrons } from "./config/cron";
+import {startCrons} from "./config/cron";
 import Database from "./config/database";
 import logging from "./config/logging";
 import DatapointController from "./controller/datapoint";
 import EntityController from "./controller/entity";
 import MatchController from "./controller/match";
-import { EntityDoc, EntityModel } from "./models/entity";
-import { Strategy as OAuth2Strategy } from "passport-oauth2";
+import {EntityDoc, EntityModel} from "./models/entity";
+import {Strategy as OAuth2Strategy} from "passport-oauth2";
+
+require("dotenv").config();
 
 const app = express();
 
@@ -66,14 +67,6 @@ class Server {
 
         startCrons();
 
-        // Request logging
-        app.use((req, res, next) => {
-            res.on("finish", () => {
-                logging.info(`${req.method} ${req.url} - [${res.statusCode}] - IP: [${req.socket.remoteAddress}]`);
-            });
-            next();
-        });
-
         app.use(
             session({
                 secret: config.secret,
@@ -89,6 +82,9 @@ class Server {
             })
         );
 
+        // Request logging
+        app.use(Middleware.logRequests);
+
         app.use(passport.initialize());
         app.use(passport.session());
 
@@ -103,6 +99,8 @@ class Server {
 
         app.get("/match", MatchController.GET);
         app.post("/match", MatchController.POST);
+
+        app.get("/random", DatapointController.randomGET);
 
         app.get("/results", MatchController.resultsGET);
         app.post("/results", MatchController.resultsPOST);
@@ -126,6 +124,9 @@ class Server {
         app.get("/", (req: Request, res: Response) => res.json({ message: "Welcome to the QuaverPvM API!" }));
 
         app.get("*", (req: Request, res: Response) => res.status(404).json({ message: "Not found" }));
+
+        // Error handling
+        app.use(Middleware.handleError);
 
         app.listen(config.port, () => logging.info(`Server is running on port ${config.port}`));
     }
