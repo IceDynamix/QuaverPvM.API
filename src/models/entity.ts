@@ -57,22 +57,14 @@ class Entity {
         return {...this.toObject(), quaverData: (await this.getQuaverData()).toObject().quaverData};
     }
 
-    static async addNewMaps(count: number) {
+    static async addNewMaps() {
         let validMaps = fs
             .readFileSync("./maps.tsv")
             .toString()
             .split("\n")
             .map((row) => row.split("\t"));
 
-        // Shuffle
-        for (let i = validMaps.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [validMaps[i], validMaps[j]] = [validMaps[j], validMaps[i]];
-        }
-
-        let mapsToAdd = validMaps.slice(0, count);
-
-        for (const [mapId, rate, diff] of mapsToAdd) {
+        for (const [mapId, rate, diff] of validMaps) {
             try {
                 await EntityModel.createNewMap(parseInt(mapId), parseFloat(rate), parseFloat(diff));
                 logging.info(`Added ${mapId}`);
