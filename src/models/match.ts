@@ -66,8 +66,8 @@ class Match {
             quaverId: {$nin: blacklistedQuaverIds}
         });
 
-        const upperBound = Glicko.qrToGlicko(Glicko.glickoToQr(userStats.rating) + qrMatchmakingWindow);
-        const lowerBound = Glicko.qrToGlicko(Glicko.glickoToQr(userStats.rating) - qrMatchmakingWindow);
+        const lowerBound = Glicko.qrToGlicko(Math.max(0, Glicko.glickoToQr(userStats.rating) - qrMatchmakingWindow));
+        const upperBound = Glicko.qrToGlicko(Math.max(2, Glicko.glickoToQr(userStats.rating) + qrMatchmakingWindow));
         mapStats = mapStats.filter((stats) => stats.rating < upperBound && stats.rating > lowerBound);
 
         if (mapStats.length == 0) {

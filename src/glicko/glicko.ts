@@ -1,16 +1,19 @@
-import { MatchResult, Period, Player, Rating } from "go-glicko";
+import {MatchResult, Period, Player, Rating} from "go-glicko";
 import config from "../config/config";
 import logging from "../config/logging";
-import { EntityDatapointModel } from "../models/datapoint";
-import { EntityModel } from "../models/entity";
-import { Match } from "../models/match";
-import { DocumentType } from "@typegoose/typegoose";
+import {EntityDatapointModel} from "../models/datapoint";
+import {EntityModel} from "../models/entity";
+import {Match} from "../models/match";
+import {DocumentType} from "@typegoose/typegoose";
 
 export default class Glicko {
     public static async updateRd() {
         let datapoints = await EntityDatapointModel.getAllCurrentDatapoints();
 
-        let players = datapoints.map((dp) => ({ datapoint: dp, glicko: new Player(new Rating(dp.rating, dp.rd, dp.sigma)) }));
+        let players = datapoints.map((dp) => ({
+            datapoint: dp,
+            glicko: new Player(new Rating(dp.rating, dp.rd, dp.sigma))
+        }));
 
         logging.debug(`Created ${datapoints.length} glicko player instances`);
 
@@ -88,11 +91,12 @@ export default class Glicko {
     }
 
     public static qrToGlicko(qr: number): number {
+        qr = Math.max(0, qr);
         return 1.28 * qr * qr + 500;
     }
 
     public static glickoToQr(glicko: number): number {
-        return Math.sqrt((glicko-500)/1.28);
+        return Math.sqrt(Math.max(0, glicko - 500) / 1.28);
     }
 
     public static ranks() {
