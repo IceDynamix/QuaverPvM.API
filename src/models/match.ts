@@ -109,7 +109,7 @@ class Match {
                 let usedRate = 1;
                 let rateModMatch = mod.match(/(\d\.\d+)x/);
                 if (rateModMatch && rateModMatch.length == 2) usedRate = parseFloat(rateModMatch[0]);
-                if (usedRate < entity.mapRate) return false;
+                if (usedRate < opponent.mapRate) return false;
                 if (!rateModMatch && !whitelisted.includes(mod)) return false;
             }
             return true;
