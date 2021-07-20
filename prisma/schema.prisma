@@ -1,0 +1,42 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "mysql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    userId   Int    @id
+    username String
+    rating   Float  @default(1500)
+    rd       Float  @default(300)
+    signa    Float  @default(0.06)
+    wins     Int    @default(0)
+    matches  Int    @default(0)
+
+    @@index([rating])
+    @@index([rd])
+}
+
+model Map {
+    mapId          Int
+    mapsetId       Int
+    mapRate        Float  @default(1.0)
+    artist         String
+    title          String
+    difficultyName String
+    creator        String
+    difficulty     Float
+    rating         Float  @default(1500)
+    rd             Float  @default(200)
+    sigma          Float  @default(0.06)
+    wins           Int    @default(0)
+    matches        Int    @default(0)
+
+    @@id([mapId, mapRate])
+    @@index([mapId, mapRate])
+    @@index([rating])
+    @@index([rd])
+}
