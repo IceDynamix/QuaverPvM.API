@@ -16,7 +16,8 @@
     "dev": "ts-node ./src/script.ts"
   },
   "dependencies": {
-    "@prisma/client": "^2.27.0"
+    "@prisma/client": "^2.27.0",
+    "axios": "^0.21.1"
   },
   "engines": {
     "node": ">=12.2.0"

@@ -1,6 +1,7 @@
 .idea
 .vscode
 maps.json
+config.ts
 
 # Logs
 logs

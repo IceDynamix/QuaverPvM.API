@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import fs from "fs";
-import Glicko from "../src/glicko/glicko";
+import Glicko from "../src/glicko";
 
 const prisma = new PrismaClient();
 const mapsDatasetPath = "./maps.json";
