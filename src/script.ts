@@ -1,7 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 import quaverApi from "./quaverApi";
+import redis from "redis";
+import { promisify } from "util";
 
 const prisma = new PrismaClient();
+const redisClient = redis.createClient();
+const redisGetAsync = promisify(redisClient.get).bind(redisClient);
+const redisSetExAsync = promisify(redisClient.setex).bind(redisClient);
 
 async function main() {
     // const results = await prisma.map.findMany({ where: { rating: { gt: 1000, lt: 1500 } } });
@@ -17,3 +22,5 @@ main()
     .finally(async () => {
         await prisma.$disconnect();
     });
+
+export { prisma, redisClient, redisGetAsync, redisSetExAsync };

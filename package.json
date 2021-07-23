@@ -5,6 +5,7 @@
   "devDependencies": {
     "@types/js-yaml": "^4.0.2",
     "@types/node": "15.12.4",
+    "@types/redis": "^2.8.31",
     "js-yaml": "^4.1.0",
     "prisma": "^2.27.0",
     "sqlite": "^4.0.23",
@@ -17,7 +18,8 @@
   },
   "dependencies": {
     "@prisma/client": "^2.27.0",
-    "axios": "^0.21.1"
+    "axios": "^0.21.1",
+    "redis": "^3.1.2"
   },
   "engines": {
     "node": ">=12.2.0"
