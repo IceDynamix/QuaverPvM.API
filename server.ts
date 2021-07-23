@@ -1,8 +1,10 @@
 import config from "./src/config";
-import quaverApi from "./src/quaverApi";
 
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { PrismaClient, User } from "@prisma/client";
+const prisma = new PrismaClient({
+    log: ["query", "info", `warn`, `error`],
+    errorFormat: "pretty",
+});
 
 import redis from "redis";
 import { promisify } from "util";
@@ -18,7 +20,14 @@ import session from "express-session";
 const redisStore = require("connect-redis")(session);
 import cors from "cors";
 
+import passport from "passport";
+
 import express, { Request, Response } from "express";
+import UserController from "./src/controller/user";
+import axios from "axios";
+import OAuth2Strategy from "passport-oauth2";
+import Glicko from "./src/glicko";
+import QuaverApi from "./src/quaverApi";
 const app = express();
 
 class Server {
@@ -57,7 +66,51 @@ class Server {
         });
     }
 
-    static setupPassport() {}
+    static setupPassport() {
+        passport.serializeUser((user: any, done) => done(null, user.userId));
+        passport.deserializeUser(async (id: number, done) => prisma.user.findUnique({ where: { userId: id } }).then((user) => done(null, user)));
+
+        passport.use(
+            new OAuth2Strategy(
+                {
+                    authorizationURL: config.quaverBaseUrl + "/oauth2/authorize",
+                    tokenURL: config.quaverBaseUrl + "/oauth2/token",
+                    clientID: config.quaverOauthClient,
+                    clientSecret: config.quaverOauthSecret,
+                    callbackURL: config.selfUrl + "/auth/quaver/callback",
+                },
+                async function (accessToken: any, refreshToken: any, profile: any, done: Function) {
+                    try {
+                        const options = { headers: { Authorization: "Bearer " + config.quaverOauthSecret } };
+                        const response = await axios.post(config.quaverBaseUrl + `/oauth2/me`, { code: accessToken }, options);
+                        const userId = response.data.user.id;
+
+                        const existing = await prisma.user.findUnique({ where: { userId } });
+                        if (existing && !existing.banned) return done(null, existing);
+
+                        const quaverData = await QuaverApi.getQuaverUser(userId);
+                        const rating = Glicko.qrToGlicko((quaverData.keys4.stats.overall_performance_rating * 0.9) / 20);
+
+                        const newUser = await prisma.user.create({
+                            data: {
+                                userId,
+                                username: quaverData.info.username,
+                                rating: rating,
+                            },
+                        });
+
+                        done(null, newUser);
+                    } catch (err) {
+                        console.error(err);
+                        done(err);
+                    }
+                }
+            )
+        );
+
+        app.use(passport.initialize());
+        app.use(passport.session());
+    }
 
     static setupBodyParsing() {
         app.use(
@@ -72,7 +125,20 @@ class Server {
     }
 
     static setupRoutes() {
-        app.get("/", (req: Request, res: Response) => res.json({ message: "Welcome to the QuaverPvM API!" }));
+        app.get("/me", UserController.selfGET);
+        app.get("/user", UserController.selfGET);
+
+        app.get("/logout", (req: Request, res: Response) => {
+            req.logout();
+            res.redirect(config.selfUrl);
+        });
+
+        app.get("/auth/quaver", passport.authenticate("oauth2"), (req, res) => {});
+        app.get("/auth/quaver/callback", passport.authenticate("oauth2"), (req, res) => {
+            res.redirect(config.selfUrl);
+        });
+
+        app.get("/", (req: Request, res: Response) => res.json({ message: "Welcome to the QuaverPvM API!", session: req.session }));
         app.get("*", (req: Request, res: Response) => res.status(404).json({ message: "Not found" }));
     }
 

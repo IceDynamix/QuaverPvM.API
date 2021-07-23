@@ -8,13 +8,14 @@ datasource db {
 }
 
 model User {
-    userId   Int    @id
+    userId   Int     @id
     username String
-    rating   Float  @default(1500)
-    rd       Float  @default(300)
-    signa    Float  @default(0.06)
-    wins     Int    @default(0)
-    matches  Int    @default(0)
+    rating   Float   @default(1500)
+    rd       Float   @default(200)
+    signa    Float   @default(0.06)
+    wins     Int     @default(0)
+    matches  Int     @default(0)
+    banned   Boolean @default(false)
 
     @@index([rating])
     @@index([rd])

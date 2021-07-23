@@ -1,21 +1,17 @@
 import { PrismaClient } from "@prisma/client";
-import fs from "fs";
 import Glicko from "../src/glicko";
 
 const prisma = new PrismaClient();
-const mapsDatasetPath = "./maps.json";
+import maps from "../maps.json";
 
-async function main() {
+async function seed() {
     console.log(`Start seeding ...`);
-
-    if (!fs.existsSync(mapsDatasetPath)) throw "No map dataset generated";
-    const maps = JSON.parse(fs.readFileSync(mapsDatasetPath).toString());
 
     for (const map of maps) {
         const mapString = `${map.MapId} | ${map.Artist} - ${map.Title} [${map.DifficultyName}]`;
         for (const rate of [0.8, 0.9, 1.0, 1.1, 1.2]) {
             const rateInt = Math.round(rate * 10);
-            const difficulty = map[`Difficulty${rateInt.toString().padStart(2, "0")}X`];
+            const difficulty = (map as any)[`Difficulty${rateInt.toString().padStart(2, "0")}X`];
             const rating = Glicko.qrToGlicko(difficulty);
             try {
                 await prisma.map.create({
@@ -39,7 +35,11 @@ async function main() {
     }
 }
 
-main().catch((e) => {
-    console.error(e);
-    process.exit(1);
-});
+seed()
+    .catch((e) => {
+        console.error(e);
+        process.exit(1);
+    })
+    .finally(async () => {
+        await prisma.$disconnect();
+    });

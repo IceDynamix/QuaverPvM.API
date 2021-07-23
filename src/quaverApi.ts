@@ -15,7 +15,7 @@ export default class QuaverApi {
         }
 
         console.info("Requesting Quaver user data for " + id);
-        const response: any = await Requester.GET(`${config.apiBaseUrl}/v1/users/full/${id}`);
+        const response: any = await Requester.GET(`${config.quaverApiBaseUrl}/v1/users/full/${id}`);
         if (response.status != 200) return null;
 
         await redisSetExAsync(redisKey, 60 * 60, JSON.stringify(response.user));
