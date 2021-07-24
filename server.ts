@@ -29,6 +29,7 @@ import OAuth2Strategy from "passport-oauth2";
 import Glicko from "./src/glicko";
 import QuaverApi from "./src/quaverApi";
 import MapController from "./src/controller/map";
+import LeaderboardController from "./src/controller/leaderboard";
 const app = express();
 
 class Server {
@@ -129,6 +130,7 @@ class Server {
         app.get("/me", UserController.selfGET);
         app.get("/user", UserController.GET);
         app.get("/map", MapController.GET);
+        app.get("/leaderboard", LeaderboardController.GET);
 
         app.get("/logout", (req: Request, res: Response) => {
             req.logout();
