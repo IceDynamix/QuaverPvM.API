@@ -28,6 +28,7 @@ import axios from "axios";
 import OAuth2Strategy from "passport-oauth2";
 import Glicko from "./src/glicko";
 import QuaverApi from "./src/quaverApi";
+import MapController from "./src/controller/map";
 const app = express();
 
 class Server {
@@ -127,6 +128,7 @@ class Server {
     static setupRoutes() {
         app.get("/me", UserController.selfGET);
         app.get("/user", UserController.GET);
+        app.get("/map", MapController.GET);
 
         app.get("/logout", (req: Request, res: Response) => {
             req.logout();
