@@ -126,7 +126,7 @@ class Server {
 
     static setupRoutes() {
         app.get("/me", UserController.selfGET);
-        app.get("/user", UserController.selfGET);
+        app.get("/user", UserController.GET);
 
         app.get("/logout", (req: Request, res: Response) => {
             req.logout();
