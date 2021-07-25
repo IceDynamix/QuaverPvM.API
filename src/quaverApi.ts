@@ -1,6 +1,6 @@
 import Requester from "./requester";
 import config from "./config";
-import { redisGetAsync, redisSetExAsync } from "../server";
+import Redis from "./redis";
 
 export default class QuaverApi {
     public static async getQuaverUser(id: number): Promise<any> {
@@ -8,7 +8,7 @@ export default class QuaverApi {
 
         const redisKey = `quaver:user:${id}`;
 
-        const cached = await redisGetAsync(redisKey);
+        const cached = await Redis.get(redisKey);
         if (cached) {
             console.info(`Using cached Quaver user data for ${id}`);
             return JSON.parse(cached);
@@ -18,7 +18,7 @@ export default class QuaverApi {
         const response: any = await Requester.GET(`${config.quaverApiBaseUrl}/v1/users/full/${id}`);
         if (response.status != 200) return null;
 
-        await redisSetExAsync(redisKey, 60 * 60, JSON.stringify(response.user));
+        await Redis.setex(redisKey, 60 * 60, JSON.stringify(response.user));
         console.log(`Saved Quaver user data for ${id} to Redis`);
 
         return response.user;

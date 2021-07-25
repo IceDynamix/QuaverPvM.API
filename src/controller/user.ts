@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { prisma } from "../../server";
+import prisma from "../prisma";
 
 export default class UserController {
     public static async GET(req: Request, res: Response, next: Function) {
