@@ -1,3 +1,3 @@
-const redis = require("redis"); // it can't find the types so im done with this
+import Redis from "ioredis";
 
-export default redis.createClient();
+export default new Redis();

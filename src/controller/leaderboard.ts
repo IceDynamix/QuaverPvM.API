@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../prisma";
+import Ranking from "../ranking";
 
 const pageSize = 50;
 
@@ -9,7 +10,7 @@ export default class LeaderboardController {
 
         const pageNumber = page ? Math.max(parseInt(page.toString()), 0) : 0;
         let result = await prisma.user.findMany({
-            where: { rd: { lte: 100 }, banned: false },
+            where: { rd: { lte: Ranking.rankedRdThreshold }, banned: false },
             orderBy: { rating: "desc" },
             skip: pageSize * pageNumber,
             take: pageSize,

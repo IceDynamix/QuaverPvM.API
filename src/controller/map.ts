@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../prisma";
+import Ranking from "../ranking";
 
 export default class MapController {
     public static async GET(req: Request, res: Response, next: Function) {
@@ -14,6 +15,12 @@ export default class MapController {
         const mapRate = rate ? parseFloat(rate.toString()) : 1.0;
 
         let result = await prisma.map.findUnique({ where: { mapId_mapRate: { mapId, mapRate } } });
-        res.json(result);
+        if (!result) {
+            res.json(null);
+        } else {
+            const rankInformation = await Ranking.getMapRankInformation(result);
+            Object.assign(result, rankInformation);
+            res.json(result);
+        }
     }
 }
