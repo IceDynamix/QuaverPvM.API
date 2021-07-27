@@ -17,6 +17,7 @@ import Ranking from "../ranking";
 import QuaverApi from "../quaverApi";
 import MapController from "../controller/map";
 import LeaderboardController from "../controller/leaderboard";
+import MatchController from "../controller/match";
 const app = express();
 
 export default class Server {
@@ -118,6 +119,9 @@ export default class Server {
         app.get("/user", UserController.GET);
         app.get("/map", MapController.GET);
         app.get("/leaderboard", LeaderboardController.GET);
+
+        app.get("/match", MatchController.GET);
+        app.get("/match/ongoing", MatchController.ongoingGET);
 
         app.get("/logout", (req: Request, res: Response) => {
             req.logout();

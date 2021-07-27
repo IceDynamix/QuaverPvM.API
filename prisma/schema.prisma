@@ -8,14 +8,16 @@ datasource db {
 }
 
 model User {
-    userId   Int     @id
-    username String
-    rating   Float   @default(1500)
-    rd       Float   @default(200)
-    signa    Float   @default(0.06)
-    wins     Int     @default(0)
-    matches  Int     @default(0)
-    banned   Boolean @default(false)
+    userId        Int      @id
+    username      String
+    rating        Float    @default(1500)
+    rd            Float    @default(200)
+    signa         Float    @default(0.06)
+    wins          Int      @default(0)
+    matchesPlayed Int      @default(0)
+    banned        Boolean  @default(false)
+    createdAt     DateTime @default(now())
+    matches       Match[]
 
     @@index([rating])
     @@index([rd])
@@ -24,20 +26,42 @@ model User {
 model Map {
     mapId          Int
     mapsetId       Int
-    mapRate        Float  @default(1.0)
+    mapRate        Float   @default(1.0)
     artist         String
     title          String
     difficultyName String
     creator        String
     difficulty     Float
-    rating         Float  @default(1500)
-    rd             Float  @default(200)
-    sigma          Float  @default(0.06)
-    wins           Int    @default(0)
-    matches        Int    @default(0)
+    rating         Float   @default(1500)
+    rd             Float   @default(200)
+    sigma          Float   @default(0.06)
+    wins           Int     @default(0)
+    matchesPlayed  Int     @default(0)
+    matches        Match[]
 
     @@id([mapId, mapRate])
     @@index([mapId, mapRate])
     @@index([rating])
     @@index([rd])
+}
+
+model Match {
+    matchId   Int         @id @default(autoincrement())
+    createdAt DateTime    @default(now())
+    result    MatchResult @default(ONGOING)
+    userId    Int
+    mapId     Int
+    mapRate   Float
+    user      User        @relation(fields: [userId], references: [userId])
+    map       Map         @relation(fields: [mapId, mapRate], references: [mapId, mapRate])
+
+    @@index([userId])
+    @@index([mapId, mapRate])
+}
+
+enum MatchResult {
+    ONGOING
+    WIN
+    RESIGN
+    TIMEOUT
 }
