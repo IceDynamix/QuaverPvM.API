@@ -1,6 +1,6 @@
 import { User, Map } from "@prisma/client";
-import prisma from "./prisma";
-import redis from "./redis";
+import prisma from "./config/prisma";
+import redis from "./config/redis";
 
 const userLeaderboardKey = "quaver:leaderboard:users";
 const mapLeaderboardKey = "quaver:leaderboard:maps";

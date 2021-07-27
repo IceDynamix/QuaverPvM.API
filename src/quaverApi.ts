@@ -1,6 +1,6 @@
 import Requester from "./requester";
-import config from "./config";
-import Redis from "./redis";
+import config from "./config/config";
+import Redis from "./config/redis";
 
 export default class QuaverApi {
     public static async getQuaverUser(id: number): Promise<any> {

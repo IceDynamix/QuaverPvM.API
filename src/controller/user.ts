@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import prisma from "../prisma";
+import prisma from "../config/prisma";
 import Ranking from "../ranking";
 
 export default class UserController {

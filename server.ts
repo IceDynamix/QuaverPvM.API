@@ -1,4 +1,4 @@
-import Server from "./src/express";
+import Server from "./src/config/express";
 import Ranking from "./src/ranking";
 
 async function main() {
