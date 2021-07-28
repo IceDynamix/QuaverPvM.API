@@ -48,6 +48,16 @@ export default class Matching {
         };
     }
 
+    public static async cleanUpAllMatches(): Promise<void> {
+        await prisma.match.updateMany({
+            where: {
+                createdAt: { gte: new Date(new Date().getTime() - matchTimeout) },
+                result: "ONGOING",
+            },
+            data: { result: "TIMEOUT" },
+        });
+    }
+
     public static async findMapInRange(user: User): Promise<Map> {
         const lastPlayedMapIds = (
             await prisma.match.findMany({
