@@ -1,6 +1,9 @@
-import { User, Map } from "@prisma/client";
+import { User, Map, Match } from "@prisma/client";
 import prisma from "./config/prisma";
 import redis from "./config/redis";
+import { MatchResult as GlickoResult, Period, Player, Rating } from "go-glicko";
+
+import config from "./config/config";
 
 const userLeaderboardKey = "quaver:leaderboard:users";
 const mapLeaderboardKey = "quaver:leaderboard:maps";
@@ -131,5 +134,101 @@ export default class Ranking {
         }
 
         await transaction.exec();
+    }
+
+    public static async handleMatchResult(match: Match): Promise<void> {
+        if (!["WIN", "RESIGN", "TIMEOUT"].includes(match.result)) return;
+
+        const user = await prisma.user.findUnique({ where: { userId: match.userId } });
+        const map = await prisma.map.findUnique({ where: { mapId_mapRate: { mapId: match.mapId, mapRate: match.mapRate } } });
+
+        if (!user || !map) return;
+
+        const userPlayer = new Player(new Rating(user.rating, user.rd, user.sigma));
+        const mapPlayer = new Player(new Rating(map.rating, map.rd, map.sigma));
+
+        let period: Period = new Period(config.tau);
+
+        period.addPlayer(userPlayer);
+        period.addPlayer(mapPlayer);
+
+        let outcome = match.result === "WIN" ? GlickoResult.WIN : GlickoResult.LOSS;
+        period.addMatch(userPlayer, mapPlayer, outcome);
+
+        period.Calculate();
+
+        await Ranking.updateUserRating(user, userPlayer, match.result === "WIN");
+        await Ranking.updateMapRating(map, mapPlayer, match.result !== "WIN");
+    }
+
+    public static async updateAllUserRd(): Promise<void> {
+        const results = await prisma.user.findMany({ where: { banned: false } });
+        const players = results.map((player) => ({ player, glicko: new Player(new Rating(player.rating, player.rd, player.sigma)) }));
+
+        const period: Period = new Period(config.tau);
+        players.forEach((player) => period.addPlayer(player.glicko));
+        period.Calculate();
+
+        for (const player of players) await Ranking.updateUserRating(player.player, player.glicko);
+    }
+
+    private static async updateUserRating(user: User, userPlayer: Player, result: boolean | null = null): Promise<User> {
+        console.info(
+            [
+                `User ${user.userId}`,
+                `Rating ${user.rating.toFixed(0)} -> ${userPlayer.Rating().R().toFixed(0)}`,
+                `RD ${user.rd.toFixed(0)} -> ${userPlayer.Rating().RD().toFixed(0)}`,
+                `Sigma ${user.sigma.toFixed(4)} -> ${userPlayer.Rating().Sigma().toFixed(4)}`,
+            ].join(" | ")
+        );
+
+        user = await prisma.user.update({
+            where: { userId: user.userId },
+            data: {
+                rating: userPlayer.Rating().R(),
+                rd: userPlayer.Rating().RD(),
+                sigma: userPlayer.Rating().Sigma(),
+                matchesPlayed: user.matchesPlayed + (result !== null ? 1 : 0),
+                wins: user.matchesPlayed + (result ? 1 : 0),
+            },
+        });
+
+        if (user.rd < Ranking.rankedRdThreshold) {
+            await redis.zadd(userLeaderboardKey, user.rating, user.userId.toString());
+        } else {
+            await redis.zrem(userLeaderboardKey, user.userId.toString());
+        }
+
+        return user;
+    }
+
+    private static async updateMapRating(map: Map, mapPlayer: Player, result: boolean | null = null): Promise<Map> {
+        console.info(
+            [
+                `Map ${map.mapId} ${map.mapRate}x`,
+                `Rating ${map.rating.toFixed(0)} -> ${mapPlayer.Rating().R().toFixed(0)}`,
+                `RD ${map.rd.toFixed(0)} -> ${mapPlayer.Rating().RD().toFixed(0)}`,
+                `Sigma ${map.sigma.toFixed(4)} -> ${mapPlayer.Rating().Sigma().toFixed(4)}`,
+            ].join(" | ")
+        );
+
+        map = await prisma.map.update({
+            where: { mapId_mapRate: { mapId: map.mapId, mapRate: map.mapRate } },
+            data: {
+                rating: mapPlayer.Rating().R(),
+                rd: mapPlayer.Rating().RD(),
+                sigma: mapPlayer.Rating().Sigma(),
+                matchesPlayed: map.matchesPlayed + (result !== null ? 1 : 0),
+                wins: map.matchesPlayed + (result ? 1 : 0),
+            },
+        });
+
+        if (map.rd < Ranking.rankedRdThreshold) {
+            await redis.zadd(mapLeaderboardKey, map.rating, `${map.mapId},${map.mapRate}`);
+        } else {
+            await redis.zrem(mapLeaderboardKey, `${map.mapId},${map.mapRate}`);
+        }
+
+        return map;
     }
 }

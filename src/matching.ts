@@ -39,11 +39,11 @@ export default class Matching {
         return async () => {
             const ongoingMatch = await prisma.match.findUnique({ where: { matchId: match.matchId } });
             if (ongoingMatch && ongoingMatch.result == "ONGOING") {
-                prisma.match.update({
+                await prisma.match.update({
                     where: { matchId: ongoingMatch.matchId },
                     data: { result: "TIMEOUT" },
                 });
-                // TODO: Handle loss
+                await Ranking.handleMatchResult(match);
             }
         };
     }
@@ -56,7 +56,9 @@ export default class Matching {
             },
             data: { result: "TIMEOUT" },
         });
-        // TODO: Handle loss
+
+        const matches = await prisma.match.findMany({ where: { result: "TIMEOUT" } });
+        for (const match of matches) await Ranking.handleMatchResult(match);
     }
 
     public static async findMapInRange(user: User): Promise<Map> {
@@ -91,10 +93,6 @@ export default class Matching {
         if (mapsInRange.length === 0) throw `No maps in range ${lowerBound}-${upperBound}`;
 
         const randomIndex = Math.round((mapsInRange.length - 1) * Math.random());
-        if (mapsInRange[randomIndex] == undefined) {
-            console.log(mapsInRange.length);
-            console.log(randomIndex);
-        }
 
         return mapsInRange[randomIndex];
     }

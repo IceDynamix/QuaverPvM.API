@@ -1,7 +1,9 @@
 import { Match, User, MatchResult } from "@prisma/client";
+
 import prisma from "./config/prisma";
 import Matching from "./matching";
 import QuaverApi from "./quaver/quaverApi";
+import Ranking from "./ranking";
 
 const whitelistedMods = ["Mirror", "None"];
 const validGrades = ["S", "SS", "X"];
@@ -10,14 +12,14 @@ type SubmissionResponse = { success: Boolean; message: string };
 
 export default class Submission {
     public static async submitMatch(user: User, resign: boolean = false): Promise<SubmissionResponse> {
-        const match = await Matching.getOngoingMatch(user);
+        let match = await Matching.getOngoingMatch(user);
         if (!match) return { success: false, message: "No match ongoing? This shouldn't happen" };
 
         const updateResult = async (result: MatchResult) =>
-            await prisma.match.update({
-                where: { matchId: match.matchId },
+            (match = await prisma.match.update({
+                where: { matchId: match!.matchId },
                 data: { result },
-            });
+            }));
 
         // Temporarily set to non-ongoing value to prevent additional submissions from having any effect
         await updateResult("PROCESSING");
@@ -32,7 +34,7 @@ export default class Submission {
             else await updateResult("ONGOING");
         }
 
-        // TODO: Handle rating changes
+        if (response.success) await Ranking.handleMatchResult(match);
 
         return response;
     }
