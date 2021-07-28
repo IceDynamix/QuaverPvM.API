@@ -61,6 +61,7 @@ model Match {
 
 enum MatchResult {
     ONGOING
+    PROCESSING
     WIN
     RESIGN
     TIMEOUT
