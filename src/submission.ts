@@ -1,11 +1,43 @@
-import { Match } from "@prisma/client";
+import { Match, User, MatchResult } from "@prisma/client";
+import prisma from "./config/prisma";
+import Matching from "./matching";
 import QuaverApi from "./quaverApi";
 
 const whitelistedMods = ["Mirror", "None"];
 const validGrades = ["S", "SS", "X"];
 
+type SubmissionResponse = { success: Boolean; message: string };
+
 export default class Submission {
-    private static async scanRecentUserScores(match: Match): Promise<{ success: Boolean; message: string }> {
+    public static async submitMatch(user: User, resign: boolean = false): Promise<SubmissionResponse> {
+        const match = await Matching.getOngoingMatch(user);
+        if (!match) return { success: false, message: "No match ongoing? This shouldn't happen" };
+
+        const updateResult = async (result: MatchResult) =>
+            await prisma.match.update({
+                where: { matchId: match.matchId },
+                data: { result },
+            });
+
+        // Temporarily set to non-ongoing value to prevent additional submissions from having any effect
+        await updateResult("PROCESSING");
+
+        let response: SubmissionResponse;
+        if (resign === true) {
+            response = { success: true, message: "Successfully submitted a loss" };
+            await updateResult("RESIGN");
+        } else {
+            response = await Submission.scanRecentUserScores(match);
+            if (response.success) await updateResult("WIN");
+            else await updateResult("ONGOING");
+        }
+
+        // TODO: Handle rating changes
+
+        return response;
+    }
+
+    private static async scanRecentUserScores(match: Match): Promise<SubmissionResponse> {
         let scores = await QuaverApi.getRecentUserScores(match.userId);
 
         scores = scores.filter((score: any) => new Date(score.time) > match.createdAt);
@@ -44,15 +76,15 @@ export default class Submission {
 
     private static scoreIsValid(score: any, mapRate: number): boolean {
         for (const mod of score.mods_string.split(", ")) {
-            let scoreedRate = 1;
+            let playedRate = 1;
 
             let rateModMatch = mod.match(/(\d\.\d+)x/);
             if (rateModMatch && rateModMatch.length == 2) {
-                scoreedRate = parseFloat(rateModMatch[0]);
+                playedRate = parseFloat(rateModMatch[0]);
             }
 
-            // Scoreed rate was too low
-            if (scoreedRate < mapRate) return false;
+            // Played rate was too low
+            if (playedRate < mapRate) return false;
             // Included invalid mod
             if (!rateModMatch && !whitelistedMods.includes(mod)) return false;
         }

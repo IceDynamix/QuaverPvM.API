@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import Matching from "../matching";
+import Submission from "../submission";
 
 export default class MatchController {
     public static async GET(req: Request, res: Response, next: Function) {
@@ -33,5 +34,14 @@ export default class MatchController {
         }
 
         res.json(await Matching.matchmaker(req.user));
+    }
+
+    public static async submitPOST(req: Request, res: Response, next: Function) {
+        if (!req.user) {
+            res.json(null);
+            return;
+        }
+
+        res.json(await Submission.submitMatch(req.user, req.body.resign ?? false));
     }
 }

@@ -123,6 +123,7 @@ export default class Server {
         app.get("/match", MatchController.GET);
         app.get("/match/new", MatchController.newGET);
         app.get("/match/ongoing", MatchController.ongoingGET);
+        app.post("/match/submit", MatchController.submitPOST);
 
         app.get("/logout", (req: Request, res: Response) => {
             req.logout();
