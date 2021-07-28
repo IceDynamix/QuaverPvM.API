@@ -1,5 +1,6 @@
 .idea
 .vscode
+script.ts
 
 # Logs
 logs

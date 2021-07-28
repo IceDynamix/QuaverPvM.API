@@ -25,4 +25,13 @@ export default class MatchController {
 
         res.json(await Matching.getOngoingMatch(req.user));
     }
+
+    public static async newGET(req: Request, res: Response, next: Function) {
+        if (!req.user) {
+            res.json(null);
+            return;
+        }
+
+        res.json(await Matching.matchmaker(req.user));
+    }
 }
