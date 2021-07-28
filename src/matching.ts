@@ -51,11 +51,12 @@ export default class Matching {
     public static async cleanUpAllMatches(): Promise<void> {
         await prisma.match.updateMany({
             where: {
-                createdAt: { gte: new Date(new Date().getTime() - matchTimeout) },
+                createdAt: { lte: new Date(new Date().getTime() - matchTimeout) },
                 result: "ONGOING",
             },
             data: { result: "TIMEOUT" },
         });
+        // TODO: Handle loss
     }
 
     public static async findMapInRange(user: User): Promise<Map> {
