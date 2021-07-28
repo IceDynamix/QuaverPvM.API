@@ -3,7 +3,7 @@ import config from "./config/config";
 import Redis from "./config/redis";
 
 export default class QuaverApi {
-    public static async getQuaverUser(id: number): Promise<any> {
+    public static async getFullUser(id: number): Promise<any> {
         if (!id) return null;
 
         const redisKey = `quaver:user:${id}`;
@@ -22,5 +22,13 @@ export default class QuaverApi {
         console.log(`Saved Quaver user data for ${id} to Redis`);
 
         return response.user;
+    }
+
+    static async getRecentUserScores(id: number, mode: number = 1): Promise<any> {
+        // No need to cache since the most recent data is required at all times
+        const url = `${config.quaverApiBaseUrl}/v1/users/scores/recent?id=${id}&mode=${mode}&limit=5`;
+        const response: any = await Requester.GET(url);
+        if (response.status != 200) return null;
+        return response.scores;
     }
 }

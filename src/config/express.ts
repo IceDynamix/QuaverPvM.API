@@ -78,7 +78,7 @@ export default class Server {
                         const existing = await prisma.user.findUnique({ where: { userId } });
                         if (existing && !existing.banned) return done(null, existing);
 
-                        const quaverData = await QuaverApi.getQuaverUser(userId);
+                        const quaverData = await QuaverApi.getFullUser(userId);
                         const rating = Ranking.qrToGlicko((quaverData.keys4.stats.overall_performance_rating * 0.9) / 20);
 
                         const newUser = await prisma.user.create({
