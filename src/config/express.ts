@@ -14,7 +14,7 @@ import UserController from "../controller/user";
 import axios from "axios";
 import OAuth2Strategy from "passport-oauth2";
 import Ranking from "../ranking";
-import QuaverApi from "../quaverApi";
+import QuaverApi from "../quaver/quaverApi";
 import MapController from "../controller/map";
 import LeaderboardController from "../controller/leaderboard";
 import MatchController from "../controller/match";

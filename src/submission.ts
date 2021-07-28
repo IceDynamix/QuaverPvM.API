@@ -1,7 +1,7 @@
 import { Match, User, MatchResult } from "@prisma/client";
 import prisma from "./config/prisma";
 import Matching from "./matching";
-import QuaverApi from "./quaverApi";
+import QuaverApi from "./quaver/quaverApi";
 
 const whitelistedMods = ["Mirror", "None"];
 const validGrades = ["S", "SS", "X"];
