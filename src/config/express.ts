@@ -18,6 +18,7 @@ import QuaverApi from "../quaver/quaverApi";
 import MapController from "../controller/map";
 import LeaderboardController from "../controller/leaderboard";
 import MatchController from "../controller/match";
+import StatsController from "../controller/stats";
 const app = express();
 
 export default class Server {
@@ -119,6 +120,7 @@ export default class Server {
         app.get("/user", UserController.GET);
         app.get("/map", MapController.GET);
         app.get("/leaderboard", LeaderboardController.GET);
+        app.get("/stats", StatsController.GET);
 
         app.get("/match", MatchController.GET);
         app.get("/match/new", MatchController.newGET);
