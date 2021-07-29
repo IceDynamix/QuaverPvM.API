@@ -129,12 +129,12 @@ export default class Server {
 
         app.get("/logout", (req: Request, res: Response) => {
             req.logout();
-            res.redirect(config.selfUrl);
+            res.redirect(config.clientBaseUrl);
         });
 
         app.get("/auth/quaver", passport.authenticate("oauth2"), (req, res) => {});
         app.get("/auth/quaver/callback", passport.authenticate("oauth2"), (req, res) => {
-            res.redirect(config.selfUrl);
+            res.redirect(config.clientBaseUrl);
         });
 
         app.get("/", (req: Request, res: Response) => res.json({ message: "Welcome to the QuaverPvM API!", session: req.session }));
