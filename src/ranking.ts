@@ -189,7 +189,7 @@ export default class Ranking {
                 rd: userPlayer.Rating().RD(),
                 sigma: userPlayer.Rating().Sigma(),
                 matchesPlayed: user.matchesPlayed + (result !== null ? 1 : 0),
-                wins: user.matchesPlayed + (result ? 1 : 0),
+                wins: user.wins + (result ? 1 : 0),
             },
         });
 
