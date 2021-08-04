@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import Matching from "../matching";
+import Ranking from "../ranking";
 import Submission from "../submission";
 
 export default class MatchController {
@@ -24,7 +25,27 @@ export default class MatchController {
             return;
         }
 
-        res.json(await Matching.getOngoingMatch(req.user));
+        const match = await Matching.getOngoingMatch(req.user);
+        if (!match) {
+            res.json(null);
+            return;
+        }
+
+        const map = await prisma.map.findUnique({
+            where: {
+                mapId_mapRate: {
+                    mapId: match.mapId,
+                    mapRate: match.mapRate,
+                },
+            },
+        });
+
+        if (map) {
+            const rankInformation = await Ranking.getMapRankInformation(map);
+            Object.assign(map, rankInformation);
+        }
+
+        res.json({ match, map });
     }
 
     public static async newGET(req: Request, res: Response, next: Function) {
@@ -33,7 +54,27 @@ export default class MatchController {
             return;
         }
 
-        res.json(await Matching.matchmaker(req.user));
+        const match = await Matching.matchmaker(req.user);
+        if (!match) {
+            res.json(null);
+            return;
+        }
+
+        const map = await prisma.map.findUnique({
+            where: {
+                mapId_mapRate: {
+                    mapId: match.mapId,
+                    mapRate: match.mapRate,
+                },
+            },
+        });
+
+        if (map) {
+            const rankInformation = await Ranking.getMapRankInformation(map);
+            Object.assign(map, rankInformation);
+        }
+
+        res.json({ match, map });
     }
 
     public static async submitPOST(req: Request, res: Response, next: Function) {
