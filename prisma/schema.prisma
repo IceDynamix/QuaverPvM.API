@@ -10,6 +10,7 @@ datasource db {
 model User {
     userId        Int      @id
     username      String
+    avatarUrl     String   @default("")
     rating        Float    @default(1500)
     rd            Float    @default(200)
     sigma         Float    @default(0.06)

@@ -87,6 +87,7 @@ export default class Server {
                                 userId,
                                 username: quaverData.info.username,
                                 rating: rating,
+                                avatarUrl: quaverData.info.avatar_url,
                             },
                         });
 
