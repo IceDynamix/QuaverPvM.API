@@ -22,6 +22,13 @@ export default class UserController {
     }
 
     public static async selfGET(req: Request, res: Response, next: Function) {
-        res.json(req.user);
+        const user = req.user;
+        if (!user) {
+            res.json(null);
+        } else {
+            const rankInformation = await Ranking.getUserRankInformation(user);
+            Object.assign(user, rankInformation);
+            res.json(user);
+        }
     }
 }
