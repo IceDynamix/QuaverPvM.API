@@ -21,7 +21,7 @@ export default class Matching {
         const ongoing = await Matching.getOngoingMatch(user);
         if (ongoing) return ongoing;
 
-        const map = await Matching.findMapInRange(user);
+        const map = await Matching.findMapInUserRange(user);
         const match = await prisma.match.create({
             data: {
                 mapId: map.mapId,
@@ -49,19 +49,21 @@ export default class Matching {
     }
 
     public static async cleanUpAllMatches(): Promise<void> {
-        await prisma.match.updateMany({
+        const unprocessedTimedOutMatches = await prisma.match.findMany({
             where: {
                 createdAt: { lte: new Date(new Date().getTime() - matchTimeout) },
                 result: "ONGOING",
             },
-            data: { result: "TIMEOUT" },
         });
 
-        const matches = await prisma.match.findMany({ where: { result: "TIMEOUT" } });
-        for (const match of matches) await Ranking.handleMatchResult(match);
+        const matchIds = unprocessedTimedOutMatches.map((m) => m.matchId);
+
+        await prisma.match.updateMany({ where: { matchId: { notIn: matchIds } }, data: { result: "TIMEOUT" } });
+
+        for (const match of unprocessedTimedOutMatches) await Ranking.handleMatchResult(match);
     }
 
-    public static async findMapInRange(user: User): Promise<Map> {
+    public static async findMapInUserRange(user: User): Promise<Map> {
         const lastPlayedMapIds = (
             await prisma.match.findMany({
                 where: {
@@ -93,7 +95,6 @@ export default class Matching {
         if (mapsInRange.length === 0) throw `No maps in range ${lowerBound}-${upperBound}`;
 
         const randomIndex = Math.round((mapsInRange.length - 1) * Math.random());
-
         return mapsInRange[randomIndex];
     }
 }
