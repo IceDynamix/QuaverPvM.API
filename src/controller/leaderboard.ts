@@ -9,12 +9,18 @@ export default class LeaderboardController {
         const { page } = req.query;
 
         const pageNumber = page ? Math.max(parseInt(page.toString()), 0) : 0;
-        let result = await prisma.user.findMany({
+        let results = await prisma.user.findMany({
             where: { rd: { lte: Ranking.rankedRdThreshold }, banned: false },
             orderBy: { rating: "desc" },
             skip: pageSize * pageNumber,
             take: pageSize,
         });
-        res.json(result);
+
+        for (const result of results) {
+            const rankInformation = await Ranking.getUserRankInformation(result);
+            Object.assign(result, rankInformation);
+        }
+
+        res.json(results);
     }
 }
