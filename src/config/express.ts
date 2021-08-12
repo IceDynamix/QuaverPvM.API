@@ -120,6 +120,7 @@ export default class Server {
         app.get("/me", UserController.selfGET);
         app.get("/user", UserController.GET);
         app.get("/map", MapController.GET);
+        app.get("/map/random", MapController.randomGET);
         app.get("/leaderboard", LeaderboardController.GET);
         app.get("/stats", StatsController.GET);
 

@@ -97,4 +97,20 @@ export default class Matching {
         const randomIndex = Math.round((mapsInRange.length - 1) * Math.random());
         return mapsInRange[randomIndex];
     }
+
+    public static async findMapInRatingRange(min: number, max: number): Promise<Map> {
+        const mapsInRange = await prisma.map.findMany({
+            where: {
+                rating: {
+                    gte: min,
+                    lte: max,
+                },
+            },
+        });
+
+        if (mapsInRange.length === 0) throw `No maps in range ${min}-${max}`;
+
+        const randomIndex = Math.round((mapsInRange.length - 1) * Math.random());
+        return mapsInRange[randomIndex];
+    }
 }
