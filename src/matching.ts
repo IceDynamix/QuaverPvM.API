@@ -92,7 +92,7 @@ export default class Matching {
             },
         });
 
-        if (mapsInRange.length === 0) throw `No maps in range ${lowerBound}-${upperBound}`;
+        if (mapsInRange.length === 0) throw `No maps in range ${lowerBound.toFixed(0)}-${upperBound.toFixed(0)}`;
 
         const randomIndex = Math.round((mapsInRange.length - 1) * Math.random());
         return mapsInRange[randomIndex];
