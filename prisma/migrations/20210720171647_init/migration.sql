@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE `User` (
+CREATE TABLE `user` (
     `userId` INTEGER NOT NULL,
     `username` VARCHAR(191) NOT NULL,
     `rating` DOUBLE NOT NULL DEFAULT 1500,
@@ -12,7 +12,7 @@ CREATE TABLE `User` (
     PRIMARY KEY (`userId`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 -- CreateTable
-CREATE TABLE `Map` (
+CREATE TABLE `map` (
     `mapId` INTEGER NOT NULL,
     `mapsetId` INTEGER NOT NULL,
     `artist` VARCHAR(191) NOT NULL,
