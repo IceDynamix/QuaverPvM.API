@@ -1,5 +1,4 @@
 import axios from "axios";
-import logging from "../config/logging";
 
 export default class Requester {
     public static async GET(url: string, params: object = {}): Promise<any> {
@@ -13,7 +12,7 @@ export default class Requester {
                 timeout: timeout,
             })
             .catch((e: { response: any }) => {
-                logging.error("Error during request", e);
+                console.error("Error during request", e);
                 return e.response;
             });
 
@@ -26,7 +25,7 @@ export default class Requester {
         };
 
         const response = await axios.post(url, data, { headers }).catch((e: { response: any }) => {
-            logging.error(e.response.data);
+            console.error(e.response.data);
             return e.response;
         });
 
