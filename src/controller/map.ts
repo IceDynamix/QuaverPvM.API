@@ -6,11 +6,7 @@ import Matching from "../matching";
 export default class MapController {
     public static async GET(req: Request, res: Response, next: Function) {
         const { id, rate } = req.query;
-
-        if (!id) {
-            res.json(null);
-            return;
-        }
+        if (!id) return res.json(null);
 
         const mapId = parseInt(id.toString());
         const mapRate = rate ? parseFloat(rate.toString()) : 1.0;

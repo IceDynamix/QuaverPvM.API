@@ -116,8 +116,13 @@ export default class Server {
         app.use(express.json());
     }
 
+    static async requireLogin(req: any, res: any, next: any): Promise<void> {
+        if (!req.user) return res.json({ message: "Not logged in!" });
+        next();
+    }
+
     static setupRoutes() {
-        app.get("/me", UserController.selfGET);
+        app.get("/me", Server.requireLogin, UserController.selfGET);
         app.get("/user", UserController.GET);
         app.get("/map", MapController.GET);
         app.get("/map/random", MapController.randomGET);
@@ -125,9 +130,9 @@ export default class Server {
         app.get("/stats", StatsController.GET);
 
         app.get("/match", MatchController.GET);
-        app.get("/match/new", MatchController.newGET);
-        app.get("/match/ongoing", MatchController.ongoingGET);
-        app.post("/match/submit", MatchController.submitPOST);
+        app.get("/match/new", Server.requireLogin, MatchController.newGET);
+        app.get("/match/ongoing", Server.requireLogin, MatchController.ongoingGET);
+        app.post("/match/submit", Server.requireLogin, MatchController.submitPOST);
 
         app.get("/logout", (req: Request, res: Response) => {
             req.logout();
@@ -139,7 +144,7 @@ export default class Server {
             res.redirect(config.clientBaseUrl);
         });
 
-        app.get("/", (req: Request, res: Response) => res.json({ message: "Welcome to the QuaverPvM API!", session: req.session }));
+        app.get("/", (req: Request, res: Response) => res.json({ message: "Welcome to the QuaverPvM API!" }));
         app.get("*", (req: Request, res: Response) => res.status(404).json({ message: "Not found" }));
     }
 

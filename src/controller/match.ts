@@ -7,29 +7,17 @@ import Submission from "../submission";
 export default class MatchController {
     public static async GET(req: Request, res: Response, next: Function) {
         const { id } = req.query;
-
-        if (!id) {
-            res.json(null);
-            return;
-        }
+        if (!id) return res.json(null);
 
         const matchId = parseInt(id.toString());
 
         let result = await prisma.match.findUnique({ where: { matchId } });
-        res.json(result ? result : null);
+        res.json(result ?? null);
     }
 
     public static async ongoingGET(req: Request, res: Response, next: Function) {
-        if (!req.user) {
-            res.json(null);
-            return;
-        }
-
-        const match = await Matching.getOngoingMatch(req.user);
-        if (!match) {
-            res.json(null);
-            return;
-        }
+        const match = await Matching.getOngoingMatch(req.user!);
+        if (!match) return res.json(null);
 
         const map = await prisma.map.findUnique({
             where: {
@@ -49,15 +37,11 @@ export default class MatchController {
     }
 
     public static async newGET(req: Request, res: Response, next: Function) {
-        if (!req.user) {
-            res.json(null);
-            return;
-        }
-
-        const match = await Matching.matchmaker(req.user);
-        if (!match) {
-            res.json(null);
-            return;
+        let match;
+        try {
+            match = await Matching.matchmaker(req.user!);
+        } catch (error) {
+            return res.json({ error, message: error.message });
         }
 
         const map = await prisma.map.findUnique({
@@ -78,11 +62,6 @@ export default class MatchController {
     }
 
     public static async submitPOST(req: Request, res: Response, next: Function) {
-        if (!req.user) {
-            res.json(null);
-            return;
-        }
-
-        res.json(await Submission.submitMatch(req.user, req.body.resign ?? false));
+        res.json(await Submission.submitMatch(req.user!, req.body.resign ?? false));
     }
 }
