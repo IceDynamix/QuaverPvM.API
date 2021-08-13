@@ -60,14 +60,14 @@ export default class Submission {
         if (scores.length === 0)
             return {
                 success: false,
-                message: `Found recent scores on map, but invalid mods were used. (${scores[0].mods_string})`,
+                message: `Found recent scores on map, but invalid mods were used.`,
             };
 
         scores = scores.filter((score: any) => validGrades.includes(score.grade));
         if (scores.length === 0)
             return {
                 success: false,
-                message: `Found recent score on map, but required grade was not reached. (${scores[0].accuracy.toFixed(2)}%)`,
+                message: `Found recent score on map, but required grade was not reached.`,
             };
 
         return {
