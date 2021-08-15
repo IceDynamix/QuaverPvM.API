@@ -58,7 +58,8 @@ export default class Ranking {
             rank = (await redis.zrevrank(userLeaderboardKey, user.userId.toString())) as number;
         }
 
-        const percentile = rank / (await redis.zcard(userLeaderboardKey));
+        const count = await redis.zcard(userLeaderboardKey);
+        const percentile = count == 1 ? 0.0 : rank / (count - 1);
         let letterRank = "z";
         for (const rank of percentileRanks)
             if (percentile <= rank.percentile) {
@@ -91,7 +92,8 @@ export default class Ranking {
             rank = (await redis.zrevrank(mapLeaderboardKey, map.mapId.toString())) as number;
         }
 
-        const percentile = rank / (await redis.zcard(mapLeaderboardKey));
+        const count = await redis.zcard(mapLeaderboardKey);
+        const percentile = count == 1 ? 0.0 : rank / (count - 1);
         let letterRank = "z";
         for (const rank of percentileRanks)
             if (percentile <= rank.percentile) {
