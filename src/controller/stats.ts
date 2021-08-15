@@ -6,8 +6,8 @@ export default class StatsController {
     public static async GET(req: Request, res: Response, next: Function) {
         const userCount = await prisma.user.count({ where: { banned: false } });
         const rankedUserCount = await prisma.user.count({ where: { banned: false, rd: { lte: Ranking.rankedRdThreshold } } });
-        const mapCount = await prisma.map.count({ where: { mapRate: 1.0 } });
-        const rankedMapCount = await prisma.map.count({ where: { mapRate: 1.0, rd: { lte: Ranking.rankedRdThreshold } } });
+        const mapCount = await prisma.map.count();
+        const rankedMapCount = await prisma.map.count({ where: { rd: { lte: Ranking.rankedRdThreshold } } });
         const matchCount = await prisma.match.count();
 
         // TODO: Rank Thresholds
