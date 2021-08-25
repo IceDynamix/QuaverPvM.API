@@ -124,6 +124,7 @@ export default class Server {
     static setupRoutes() {
         app.get("/me", Server.requireLogin, UserController.selfGET);
         app.get("/user", UserController.GET);
+        app.get("/user/matches", UserController.userMatchesGET);
         app.get("/map", MapController.GET);
         app.get("/map/random", MapController.randomGET);
         app.get("/leaderboard", LeaderboardController.GET);

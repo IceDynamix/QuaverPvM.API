@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import Ranking from "../ranking";
 
+const pageSize = 50;
+
 export default class UserController {
     public static async GET(req: Request, res: Response, next: Function) {
         const { id } = req.query;
@@ -24,5 +26,25 @@ export default class UserController {
         const rankInformation = await Ranking.getUserRankInformation(user);
         Object.assign(user, rankInformation);
         res.json(user);
+    }
+
+    public static async userMatchesGET(req: Request, res: Response, next: Function) {
+        const { id, page } = req.query;
+        if (!id) return res.json(null);
+
+        const userId = parseInt(id.toString());
+        const pageNumber = page ? Math.max(parseInt(page.toString()), 0) : 0;
+
+        let results = await prisma.match.findMany({
+            where: { userId },
+            orderBy: { createdAt: "desc" },
+            take: pageSize,
+            skip: pageSize * pageNumber,
+            include: { map: true },
+        });
+
+        for (const result of results) Object.assign(result.map, await Ranking.getMapRankInformation(result.map));
+
+        res.json(results);
     }
 }

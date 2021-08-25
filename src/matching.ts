@@ -57,8 +57,7 @@ export default class Matching {
         });
 
         const matchIds = unprocessedTimedOutMatches.map((m) => m.matchId);
-
-        await prisma.match.updateMany({ where: { matchId: { notIn: matchIds } }, data: { result: "TIMEOUT" } });
+        await prisma.match.updateMany({ where: { matchId: { in: matchIds } }, data: { result: "TIMEOUT" } });
 
         for (const match of unprocessedTimedOutMatches) await Ranking.handleMatchResult(match);
     }
