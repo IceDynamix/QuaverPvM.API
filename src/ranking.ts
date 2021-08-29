@@ -1,4 +1,4 @@
-import { User, Map, Match } from "@prisma/client";
+import { User, Map, Match, MatchResult } from "@prisma/client";
 import prisma from "./config/prisma";
 import redis from "./config/redis";
 import { MatchResult as GlickoResult, Period, Player, Rating } from "go-glicko";
@@ -138,14 +138,34 @@ export default class Ranking {
         await transaction.exec();
     }
 
+    // Compute user rating only against the played map
+    //
+    // Compute all map rates lower than what the player won against as a loss for the maps,
+    // or all map rates higher than what the player lost against as a win for the maps
     public static async handleMatchResult(match: Match): Promise<void> {
         if (!["WIN", "RESIGN", "TIMEOUT"].includes(match.result)) return;
 
         const user = await prisma.user.findUnique({ where: { userId: match.userId } });
-        const map = await prisma.map.findUnique({ where: { mapId_mapRate: { mapId: match.mapId, mapRate: match.mapRate } } });
+        const maps = await prisma.map.findMany({
+            where: {
+                mapId: match.mapId,
+                mapRate: match.result === "WIN" ? { lte: match.mapRate } : { gte: match.mapRate },
+            },
+        });
 
-        if (!user || !map) return;
+        if (!user || maps.length === 0) return;
+        const map = match.result === "WIN" ? maps[maps.length - 1] : maps[0];
 
+        const userPlayer = Ranking.computeUserPlayer(user, map, match.result);
+        const mapPlayers = Ranking.computeMapPlayers(user, maps, match.result);
+
+        await Ranking.updateUserRating(user, userPlayer, match.result === "WIN");
+        for (let i = 0; i < maps.length; i++) {
+            await Ranking.updateMapRating(maps[i], mapPlayers[i], match.result === "WIN");
+        }
+    }
+
+    private static computeUserPlayer(user: User, map: Map, result: MatchResult): Player {
         const userPlayer = new Player(new Rating(user.rating, user.rd, user.sigma));
         const mapPlayer = new Player(new Rating(map.rating, map.rd, map.sigma));
 
@@ -154,13 +174,29 @@ export default class Ranking {
         period.addPlayer(userPlayer);
         period.addPlayer(mapPlayer);
 
-        let outcome = match.result === "WIN" ? GlickoResult.WIN : GlickoResult.LOSS;
+        let outcome = result === "WIN" ? GlickoResult.WIN : GlickoResult.LOSS;
         period.addMatch(userPlayer, mapPlayer, outcome);
 
         period.Calculate();
 
-        await Ranking.updateUserRating(user, userPlayer, match.result === "WIN");
-        await Ranking.updateMapRating(map, mapPlayer, match.result !== "WIN");
+        return userPlayer;
+    }
+
+    private static computeMapPlayers(user: User, maps: Map[], result: MatchResult): Player[] {
+        const userPlayer = new Player(new Rating(user.rating, user.rd, user.sigma));
+        const mapPlayers = maps.map((m) => new Player(new Rating(m.rating, m.rd, m.sigma)));
+
+        let period: Period = new Period(config.tau);
+
+        period.addPlayer(userPlayer);
+        mapPlayers.forEach((m) => period.addPlayer(m));
+
+        let outcome = result === "WIN" ? GlickoResult.WIN : GlickoResult.LOSS;
+        mapPlayers.forEach((m) => period.addMatch(userPlayer, m, outcome));
+
+        period.Calculate();
+
+        return mapPlayers;
     }
 
     public static async updateAllUserRd(): Promise<void> {
