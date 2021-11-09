@@ -47,4 +47,24 @@ export default class UserController {
 
         res.json(results);
     }
+
+    public static async userBestWinsGET(req: Request, res: Response, next: Function) {
+        const { id, page } = req.query;
+        if (!id) return res.json(null);
+
+        const userId = parseInt(id.toString());
+        const pageNumber = page ? Math.max(parseInt(page.toString()), 0) : 0;
+
+        let results = await prisma.match.findMany({
+            where: { userId, result: "WIN" },
+            orderBy: { map: { rating: "desc" } },
+            take: pageSize,
+            skip: pageSize * pageNumber,
+            include: { map: true },
+        });
+
+        for (const result of results) Object.assign(result.map, await Ranking.getMapRankInformation(result.map));
+
+        res.json(results);
+    }
 }
