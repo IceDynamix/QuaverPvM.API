@@ -8,7 +8,7 @@ async function main() {
     const maps = await prisma.map.findMany({ include: { matches: true } });
     for (const map of maps) {
         const matchesPlayed = map.matches.length;
-        const winCount = map.matches.filter((m) => m.result === "WIN").length;
+        const winCount = map.matches.filter((m) => m.result !== "WIN").length;
 
         if (map.matchesPlayed === matchesPlayed || map.wins === winCount) continue;
 
