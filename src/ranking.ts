@@ -257,7 +257,7 @@ export default class Ranking {
                 rd: mapPlayer.Rating().RD(),
                 sigma: mapPlayer.Rating().Sigma(),
                 matchesPlayed: map.matchesPlayed + (result !== null ? 1 : 0),
-                wins: map.matchesPlayed + (result ? 1 : 0),
+                wins: map.wins + (result ? 0 : 1),
             },
         });
 
