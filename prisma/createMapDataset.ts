@@ -38,6 +38,8 @@ async function main() {
     const count = maps.length;
     console.log(`Found ${count} maps`);
 
+    // This method of checking for NSV maps does not account for maps that use SVs to
+    // counteract BPM scroll before BPM scroll was toggleable
     const nsvMaps = maps.filter((map, i) => {
         const path = `${process.env.QUAVER_SONGS_PATH}/${map.Directory}/${map.MapId}.qua`;
         if (!fs.existsSync(path)) {
@@ -46,11 +48,18 @@ async function main() {
         }
 
         const mapContent: any = yaml.load(fs.readFileSync(path, "utf8"));
-        const timingPointsAreNsv = mapContent.BPMDoesNotAffectScrollVelocity || mapContent.TimingPoints.length === 1;
-        const nsv = mapContent.SliderVelocities.length === 0;
 
-        if (!timingPointsAreNsv && nsv) {
-            console.log(`${i}/${count}\tRejected ${path} (File was not NSV)`);
+        const svs: { StartTime: number; Multiplier: number }[] = mapContent.SliderVelocities;
+        const tps: { StartTime: number; Bpm: number }[] = mapContent.TimingPoints;
+
+        const bpmScrollOff = mapContent.BPMDoesNotAffectScrollVelocity ?? false;
+
+        // Accounts for maps that were converted from osu! and have SVs for the sake of toggling Kiai
+        const hasSvChanges = svs.length > 0 && svs.findIndex((sv) => sv.Multiplier !== 1) !== -1;
+        const hasBpmSvChanges = !bpmScrollOff && tps.length > 1;
+
+        if (hasSvChanges || hasBpmSvChanges) {
+            console.log(`${i}/${count}\tRejected ${path} (hasSV: ${hasSvChanges}, hasTp: ${hasBpmSvChanges})`);
             return false;
         }
 
