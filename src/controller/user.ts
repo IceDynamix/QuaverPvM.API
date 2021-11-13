@@ -61,6 +61,7 @@ export default class UserController {
             take: pageSize,
             skip: pageSize * pageNumber,
             include: { map: true },
+            distinct: ["mapId", "mapRate"],
         });
 
         for (const result of results) Object.assign(result.map, await Ranking.getMapRankInformation(result.map));
