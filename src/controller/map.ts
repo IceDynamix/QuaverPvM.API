@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import Ranking from "../ranking";
 import Matching from "../matching";
+import QuaverApi from "../quaver/quaverApi";
+import { Map } from ".prisma/client";
 
 export default class MapController {
     public static async GET(req: Request, res: Response, next: Function) {
@@ -50,5 +52,25 @@ export default class MapController {
             Object.assign(map, rankInformation);
             res.json(map);
         }
+    }
+
+    public static async mapSearchGET(req: Request, res: Response, next: Function) {
+        const search = req.query.search?.toString();
+        if (!search) return res.json(null);
+
+        const quaverResults = await QuaverApi.getMapSearch(search);
+
+        if (quaverResults === null) return res.json(null);
+        if (quaverResults.length === 0) return res.json([]);
+
+        const mapsetIds: number[] = quaverResults.map((u: any) => u.id);
+
+        // Order doesn't matter for mapset search (it's ordered chronologically), so a single
+        // database query is used, as opposed to the user search
+        const mapResults = await prisma.map.findMany({ where: { mapsetId: { in: mapsetIds }, mapRate: 1.0 } });
+
+        for (const map of mapResults) Object.assign(map, await Ranking.getMapRankInformation(map));
+
+        return res.json(mapResults);
     }
 }
