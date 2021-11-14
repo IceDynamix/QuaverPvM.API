@@ -63,7 +63,7 @@ export default class Matching {
     }
 
     public static async findMapInUserRange(user: User): Promise<Map> {
-        const lastPlayedMapIds = (
+        const lastPlayedMapSetIds = (
             await prisma.match.findMany({
                 where: {
                     result: { not: "ONGOING" },
@@ -71,9 +71,9 @@ export default class Matching {
                 },
                 orderBy: { createdAt: "desc" },
                 take: blacklistLastNMaps,
-                select: { mapId: true },
+                include: { map: true },
             })
-        ).map((m) => m.mapId);
+        ).map((m) => m.map.mapsetId);
 
         const qr = Ranking.glickoToQr(user.rating);
 
@@ -87,7 +87,7 @@ export default class Matching {
                     gte: lowerBound,
                     lte: upperBound,
                 },
-                mapId: { notIn: lastPlayedMapIds },
+                mapsetId: { notIn: lastPlayedMapSetIds },
             },
         });
 
