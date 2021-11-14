@@ -12,7 +12,7 @@ model User {
     username      String
     avatarUrl     String   @default("")
     rating        Float    @default(1500)
-    rd            Float    @default(200)
+    rd            Float    @default(150)
     sigma         Float    @default(0.06)
     wins          Int      @default(0)
     matchesPlayed Int      @default(0)
@@ -47,7 +47,7 @@ model Map {
     creator        String
     difficulty     Float
     rating         Float   @default(1500)
-    rd             Float   @default(200)
+    rd             Float   @default(150)
     sigma          Float   @default(0.06)
     wins           Int     @default(0)
     matchesPlayed  Int     @default(0)
