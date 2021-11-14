@@ -38,4 +38,13 @@ export default class QuaverApi {
         if (response.status != 200) return null;
         return response.mapsets;
     }
+
+    public static async getUserSearch(search: string): Promise<object[] | null> {
+        const uriEncoded = encodeURIComponent(search);
+        const url = `${config.quaverApiBaseUrl}/v1/users/search/${uriEncoded}`;
+        const response: any = await Requester.GET(url);
+        if (response.status != 200) return null;
+
+        return response.users;
+    }
 }
