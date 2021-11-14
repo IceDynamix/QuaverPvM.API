@@ -1,5 +1,7 @@
+import { User } from "@prisma/client";
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
+import QuaverApi from "../quaver/quaverApi";
 import Ranking from "../ranking";
 
 const pageSize = 50;
@@ -67,5 +69,28 @@ export default class UserController {
         for (const result of results) Object.assign(result.map, await Ranking.getMapRankInformation(result.map));
 
         res.json(results);
+    }
+
+    public static async userSearchGET(req: Request, res: Response, next: Function) {
+        const search = req.query.search?.toString();
+        if (!search) return res.json(null);
+
+        const quaverResults = await QuaverApi.getUserSearch(search);
+
+        if (quaverResults === null) return res.json(null);
+        if (quaverResults.length === 0) return res.json([]);
+
+        const userIds: number[] = quaverResults.map((u: any) => u.id);
+
+        const userResults: User[] = [];
+
+        for (const userId of userIds) {
+            const user = await prisma.user.findUnique({ where: { userId } });
+            if (user) userResults.push(user);
+        }
+
+        for (const user of userResults) Object.assign(user, await Ranking.getUserRankInformation(user));
+
+        return res.json(userResults);
     }
 }
