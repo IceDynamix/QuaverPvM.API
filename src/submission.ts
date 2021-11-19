@@ -39,9 +39,12 @@ export default class Submission {
         return response;
     }
 
-    private static async scanRecentUserScores(match: Match): Promise<SubmissionResponse> {
+    public static async scanRecentUserScores(match: Match): Promise<SubmissionResponse> {
         let scores = await QuaverApi.getRecentUserScores(match.userId);
+        return Submission.validateRecentUserScores(match, scores);
+    }
 
+    public static validateRecentUserScores(match: Match, scores: any[]): SubmissionResponse {
         scores = scores.filter((score: any) => new Date(score.time) > match.createdAt);
         if (scores.length === 0)
             return {
@@ -76,17 +79,17 @@ export default class Submission {
         };
     }
 
-    private static scoreIsValid(score: any, mapRate: number): boolean {
+    public static scoreIsValid(score: any, mapRate: number): boolean {
         for (const mod of score.mods_string.split(", ")) {
             let playedRate = 1;
-
             let rateModMatch = mod.match(/(\d\.\d+)x/);
             if (rateModMatch && rateModMatch.length == 2) {
-                playedRate = parseFloat(rateModMatch[0]);
+                playedRate = parseFloat(rateModMatch[1]);
             }
 
             // Played rate was too low
-            if (playedRate < mapRate) return false;
+            if (rateModMatch && playedRate < mapRate) return false;
+
             // Included invalid mod
             if (!rateModMatch && !whitelistedMods.includes(mod)) return false;
         }
