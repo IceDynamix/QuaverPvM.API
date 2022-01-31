@@ -7,24 +7,24 @@ import config from "./config/config";
 
 const userLeaderboardKey = "quaver:leaderboard:users";
 const mapLeaderboardKey = "quaver:leaderboard:maps";
-const percentileRanks = [
-    { rank: "x", percentile: 0.01 },
-    { rank: "u", percentile: 0.05 },
-    { rank: "ss", percentile: 0.11 },
-    { rank: "s+", percentile: 0.17 },
-    { rank: "s", percentile: 0.23 },
-    { rank: "s-", percentile: 0.3 },
-    { rank: "a+", percentile: 0.38 },
-    { rank: "a", percentile: 0.46 },
-    { rank: "a-", percentile: 0.54 },
-    { rank: "b+", percentile: 0.62 },
-    { rank: "b", percentile: 0.7 },
-    { rank: "b-", percentile: 0.78 },
-    { rank: "c+", percentile: 0.84 },
-    { rank: "c", percentile: 0.9 },
-    { rank: "c-", percentile: 0.95 },
-    { rank: "d+", percentile: 0.975 },
-    { rank: "d", percentile: 1.0 },
+const letterRanks = [
+    { rank: "x", rating: 2400 },
+    { rank: "u", rating: 2100 },
+    { rank: "ss", rating: 1800 },
+    { rank: "s+", rating: 1600 },
+    { rank: "s", rating: 1400 },
+    { rank: "s-", rating: 1200 },
+    { rank: "a+", rating: 1100 },
+    { rank: "a", rating: 1000 },
+    { rank: "a-", rating: 900 },
+    { rank: "b+", rating: 800 },
+    { rank: "b", rating: 700 },
+    { rank: "b-", rating: 650 },
+    { rank: "c+", rating: 600 },
+    { rank: "c", rating: 575 },
+    { rank: "c-", rating: 550 },
+    { rank: "d+", rating: 525 },
+    { rank: "d", rating: 500 },
 ];
 
 export default class Ranking {
@@ -45,7 +45,6 @@ export default class Ranking {
         if (user.rd > Ranking.rankedRdThreshold) {
             return {
                 rank: null,
-                percentile: null,
                 letterRank: "z",
             };
         }
@@ -58,18 +57,15 @@ export default class Ranking {
             rank = (await redis.zrevrank(userLeaderboardKey, user.userId.toString())) as number;
         }
 
-        const count = await redis.zcard(userLeaderboardKey);
-        const percentile = count == 1 ? 0.0 : rank / (count - 1);
-        let letterRank = "z";
-        for (const rank of percentileRanks)
-            if (percentile <= rank.percentile) {
+        let letterRank = "d";
+        for (const rank of letterRanks)
+            if (user.rating >= rank.rating) {
                 letterRank = rank.rank;
                 break;
             }
 
         return {
             rank: rank + 1,
-            percentile,
             letterRank,
         };
     }
@@ -79,7 +75,6 @@ export default class Ranking {
         if (map.rd > Ranking.rankedRdThreshold) {
             return {
                 rank: null,
-                percentile: null,
                 letterRank: "z",
             };
         }
@@ -92,18 +87,15 @@ export default class Ranking {
             rank = (await redis.zrevrank(mapLeaderboardKey, map.mapId.toString())) as number;
         }
 
-        const count = await redis.zcard(mapLeaderboardKey);
-        const percentile = count == 1 ? 0.0 : rank / (count - 1);
-        let letterRank = "z";
-        for (const rank of percentileRanks)
-            if (percentile <= rank.percentile) {
+        let letterRank = "d";
+        for (const rank of letterRanks)
+            if (map.rating >= rank.rating) {
                 letterRank = rank.rank;
                 break;
             }
 
         return {
             rank,
-            percentile,
             letterRank,
         };
     }
