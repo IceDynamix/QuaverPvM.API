@@ -5,7 +5,7 @@ import Matching from "./matching";
 import QuaverApi from "./quaver/quaverApi";
 import Ranking from "./ranking";
 
-const whitelistedMods = ["Mirror", "None"];
+const whitelistedMods = ["Mirror", "None", "NSV"];
 const validGrades = ["S", "SS", "X"];
 
 type SubmissionResponse = { success: Boolean; message: string };

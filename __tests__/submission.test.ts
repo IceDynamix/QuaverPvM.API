@@ -61,6 +61,21 @@ describe("Score Mod Validation", () => {
         expect(Submission.scoreIsValid(score, 1.0)).toBeTruthy();
     });
 
+    test("Allow for NSV", () => {
+        score.mods_string = "NSV";
+        expect(Submission.scoreIsValid(score, 1.0)).toBeTruthy();
+    });
+
+    test("Allow for NSV on uprated map", () => {
+        score.mods_string = "1.1x, NSV";
+        expect(Submission.scoreIsValid(score, 1.1)).toBeTruthy();
+    });
+
+    test("Allow for NSV on uprated map with mirror", () => {
+        score.mods_string = "1.1x, NSV, Mirror";
+        expect(Submission.scoreIsValid(score, 1.1)).toBeTruthy();
+    });
+
     test("Reject for invalid rate", () => {
         score.mods_string = "0.9x";
         expect(Submission.scoreIsValid(score, 1.0)).toBeFalsy();

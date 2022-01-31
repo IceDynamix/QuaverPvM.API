@@ -38,37 +38,7 @@ async function main() {
     const count = maps.length;
     console.log(`Found ${count} maps`);
 
-    // This method of checking for NSV maps does not account for maps that use SVs to
-    // counteract BPM scroll before BPM scroll was toggleable
-    const nsvMaps = maps.filter((map, i) => {
-        const path = `${process.env.QUAVER_SONGS_PATH}/${map.Directory}/${map.MapId}.qua`;
-        if (!fs.existsSync(path)) {
-            console.log(`${i}/${count}\tRejected ${path} (File does not exist)`);
-            return false;
-        }
-
-        const mapContent: any = yaml.load(fs.readFileSync(path, "utf8"));
-
-        const svs: { StartTime: number; Multiplier: number }[] = mapContent.SliderVelocities;
-        const tps: { StartTime: number; Bpm: number }[] = mapContent.TimingPoints;
-
-        const bpmScrollOff = mapContent.BPMDoesNotAffectScrollVelocity ?? false;
-
-        // Accounts for maps that were converted from osu! and have SVs for the sake of toggling Kiai
-        const hasSvChanges = svs.length > 0 && svs.findIndex((sv) => sv.Multiplier !== 1) !== -1;
-        const hasBpmSvChanges = !bpmScrollOff && tps.length > 1;
-
-        if (hasSvChanges || hasBpmSvChanges) {
-            console.log(`${i}/${count}\tRejected ${path} (hasSV: ${hasSvChanges}, hasTp: ${hasBpmSvChanges})`);
-            return false;
-        }
-
-        return true;
-    });
-
-    console.log(`Found ${nsvMaps.length} NSV maps`);
-
-    fs.writeFileSync("./maps.json", JSON.stringify(nsvMaps));
+    fs.writeFileSync("./maps.json", JSON.stringify(maps));
     console.log(`Finished writing to file`);
 }
 
