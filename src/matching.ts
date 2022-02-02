@@ -1,5 +1,5 @@
 import prisma from "./config/prisma";
-import { User, Map, Match } from "@prisma/client";
+import { User, Map, Match, Prisma } from "@prisma/client";
 import Ranking from "./ranking";
 
 const matchTimeout = 10 * 60 * 1000; // 10 minutes
@@ -81,15 +81,19 @@ export default class Matching {
         const lowerBound = Ranking.qrToGlicko(Math.max(0, qr - qrMatchWindow));
         const upperBound = Ranking.qrToGlicko(Math.max(2 * qrMatchWindow, qr + qrMatchWindow));
 
-        const mapsInRange = await prisma.map.findMany({
-            where: {
-                rating: {
-                    gte: lowerBound,
-                    lte: upperBound,
-                },
-                mapsetId: { notIn: lastPlayedMapSetIds },
+        let filter: Prisma.MapWhereInput = {
+            rating: {
+                gte: lowerBound,
+                lte: upperBound,
             },
-        });
+            mapsetId: { notIn: lastPlayedMapSetIds },
+        };
+
+        if (user.rating < 1400) {
+            filter = { ...filter, mapRate: 1.0 };
+        }
+
+        const mapsInRange = await prisma.map.findMany({ where: filter });
 
         if (mapsInRange.length === 0) throw `No maps in range ${lowerBound.toFixed(0)}-${upperBound.toFixed(0)}`;
 
