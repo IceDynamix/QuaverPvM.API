@@ -11,8 +11,8 @@ export default class LeaderboardController {
         const pageNumber = page ? Math.max(parseInt(page.toString()), 0) : 0;
 
         let filter;
-        if (full == "true") filter = { matchesPlayed: { gte: 10 }, banned: false };
-        else filter = { rd: { lte: Ranking.rankedRdThreshold }, banned: false };
+        if (full == "true") filter = { banned: false };
+        else filter = { matchesPlayed: { gte: Ranking.rankedMatchesPlayedUserThreshold }, banned: false };
 
         let results = await prisma.user.findMany({
             where: filter,

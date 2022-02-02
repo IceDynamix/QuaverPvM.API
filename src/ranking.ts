@@ -28,8 +28,9 @@ const letterRanks = [
 ];
 
 export default class Ranking {
-    // Entities with an RD of less than or equal to this value are considered ranked
-    static rankedRdThreshold = 100;
+    // Entities with a match count of this or greater are considered ranked
+    static rankedMatchesPlayedUserThreshold = 10;
+    static rankedMatchesPlayedMapThreshold = 5;
 
     public static qrToGlicko(qr: number): number {
         qr = Math.max(0, qr);
@@ -42,7 +43,7 @@ export default class Ranking {
 
     public static async getUserRankInformation(user: User) {
         // Unranked
-        if (user.rd > Ranking.rankedRdThreshold) {
+        if (user.matchesPlayed < Ranking.rankedMatchesPlayedUserThreshold) {
             return {
                 rank: null,
                 letterRank: "z",
@@ -72,7 +73,7 @@ export default class Ranking {
 
     public static async getMapRankInformation(map: Map) {
         // Unranked
-        if (map.rd > Ranking.rankedRdThreshold) {
+        if (map.matchesPlayed < Ranking.rankedMatchesPlayedMapThreshold) {
             return {
                 rank: null,
                 letterRank: "z",
@@ -107,7 +108,13 @@ export default class Ranking {
         // Only adding new users doesn't remove users that became unranked
         transaction.zremrangebyrank(userLeaderboardKey, 0, -1);
 
-        const rankedUsers = await prisma.user.findMany({ where: { rd: { lte: Ranking.rankedRdThreshold }, banned: false } });
+        const rankedUsers = await prisma.user.findMany({
+            where: {
+                matchesPlayed: { gte: Ranking.rankedMatchesPlayedUserThreshold },
+                banned: false,
+            },
+        });
+
         for (const user of rankedUsers) {
             transaction.zadd(userLeaderboardKey, user.rating, user.userId);
         }
@@ -122,7 +129,12 @@ export default class Ranking {
         // Only adding new maps doesn't remove maps that became unranked
         transaction.zremrangebyrank(mapLeaderboardKey, 0, -1);
 
-        const rankedMaps = await prisma.map.findMany({ where: { rd: { lte: Ranking.rankedRdThreshold } } });
+        const rankedMaps = await prisma.map.findMany({
+            where: {
+                matchesPlayed: { gte: Ranking.rankedMatchesPlayedMapThreshold },
+            },
+        });
+
         for (const map of rankedMaps) {
             transaction.zadd(mapLeaderboardKey, map.rating, `${map.mapId},${map.mapRate}`);
         }
@@ -223,10 +235,8 @@ export default class Ranking {
             },
         });
 
-        if (user.rd < Ranking.rankedRdThreshold) {
+        if (user.matchesPlayed >= Ranking.rankedMatchesPlayedUserThreshold) {
             await redis.zadd(userLeaderboardKey, user.rating, user.userId.toString());
-        } else {
-            await redis.zrem(userLeaderboardKey, user.userId.toString());
         }
 
         return user;
@@ -253,10 +263,8 @@ export default class Ranking {
             },
         });
 
-        if (map.rd < Ranking.rankedRdThreshold) {
+        if (map.matchesPlayed < Ranking.rankedMatchesPlayedMapThreshold) {
             await redis.zadd(mapLeaderboardKey, map.rating, `${map.mapId},${map.mapRate}`);
-        } else {
-            await redis.zrem(mapLeaderboardKey, `${map.mapId},${map.mapRate}`);
         }
 
         return map;
