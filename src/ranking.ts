@@ -164,9 +164,9 @@ export default class Ranking {
         const userPlayer = Ranking.computeUserPlayer(user, map, match.result);
         const mapPlayers = Ranking.computeMapPlayers(user, maps, match.result);
 
-        await Ranking.updateUserRating(user, userPlayer, match.result === "WIN");
+        await Ranking.updateUserRating(user, userPlayer);
         for (let i = 0; i < maps.length; i++) {
-            await Ranking.updateMapRating(maps[i], mapPlayers[i], match.result === "WIN");
+            await Ranking.updateMapRating(maps[i], mapPlayers[i]);
         }
     }
 
@@ -215,7 +215,7 @@ export default class Ranking {
         for (const player of players) await Ranking.updateUserRating(player.player, player.glicko);
     }
 
-    private static async updateUserRating(user: User, userPlayer: Player, result: boolean | null = null): Promise<User> {
+    private static async updateUserRating(user: User, userPlayer: Player): Promise<User> {
         console.info(
             [
                 `User ${user.userId}`,
@@ -225,14 +225,22 @@ export default class Ranking {
             ].join(" | ")
         );
 
+        const matches = await prisma.match.findMany({
+            where: { userId: user.userId },
+            select: { result: true },
+        });
+
+        const matchesPlayed = matches.length;
+        const wins = matches.filter((match) => match.result === "WIN").length;
+
         user = await prisma.user.update({
             where: { userId: user.userId },
             data: {
                 rating: userPlayer.Rating().R(),
                 rd: userPlayer.Rating().RD(),
                 sigma: userPlayer.Rating().Sigma(),
-                matchesPlayed: user.matchesPlayed + (result !== null ? 1 : 0),
-                wins: user.wins + (result ? 1 : 0),
+                matchesPlayed,
+                wins,
             },
         });
 
@@ -255,14 +263,22 @@ export default class Ranking {
             ].join(" | ")
         );
 
+        const matches = await prisma.match.findMany({
+            where: { mapId: map.mapId, mapRate: map.mapRate },
+            select: { result: true },
+        });
+
+        const matchesPlayed = matches.length;
+        const wins = matches.filter((match) => match.result === "WIN").length;
+
         map = await prisma.map.update({
             where: { mapId_mapRate: { mapId: map.mapId, mapRate: map.mapRate } },
             data: {
                 rating: mapPlayer.Rating().R(),
                 rd: mapPlayer.Rating().RD(),
                 sigma: mapPlayer.Rating().Sigma(),
-                matchesPlayed: map.matchesPlayed + (result !== null ? 1 : 0),
-                wins: map.wins + (result ? 0 : 1),
+                matchesPlayed,
+                wins,
             },
         });
 
