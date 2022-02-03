@@ -30,22 +30,22 @@ export default class Matching {
             },
         });
 
-        setTimeout(Matching.cleanUpMatch(match), matchTimeout);
+        setTimeout(async () => {
+            await Matching.cleanUpMatch(match);
+        }, matchTimeout);
 
         return match;
     }
 
-    private static cleanUpMatch(match: Match): (match: Match) => void {
-        return async () => {
-            const ongoingMatch = await prisma.match.findUnique({ where: { matchId: match.matchId } });
-            if (ongoingMatch && ongoingMatch.result == "ONGOING") {
-                await prisma.match.update({
-                    where: { matchId: ongoingMatch.matchId },
-                    data: { result: "TIMEOUT" },
-                });
-                await Ranking.handleMatchResult(match);
-            }
-        };
+    private static async cleanUpMatch(match: Match) {
+        const ongoingMatch = await prisma.match.findUnique({ where: { matchId: match.matchId } });
+        if (ongoingMatch && ongoingMatch.result == "ONGOING") {
+            await prisma.match.update({
+                where: { matchId: ongoingMatch.matchId },
+                data: { result: "TIMEOUT" },
+            });
+            await Ranking.handleMatchResult(match);
+        }
     }
 
     public static async cleanUpAllMatches(): Promise<void> {
