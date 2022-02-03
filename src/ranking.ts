@@ -4,6 +4,7 @@ import redis from "./config/redis";
 import { MatchResult as GlickoResult, Period, Player, Rating } from "go-glicko";
 
 import config from "./config/config";
+import History from "./history";
 
 const userLeaderboardKey = "quaver:leaderboard:users";
 const mapLeaderboardKey = "quaver:leaderboard:maps";
@@ -239,6 +240,8 @@ export default class Ranking {
             await redis.zadd(userLeaderboardKey, user.rating, user.userId.toString());
         }
 
+        await History.createUserDatapoint(user);
+
         return user;
     }
 
@@ -266,6 +269,8 @@ export default class Ranking {
         if (map.matchesPlayed < Ranking.rankedMatchesPlayedMapThreshold) {
             await redis.zadd(mapLeaderboardKey, map.rating, `${map.mapId},${map.mapRate}`);
         }
+
+        await History.createMapDatapoint(map);
 
         return map;
     }

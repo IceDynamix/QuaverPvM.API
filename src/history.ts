@@ -14,6 +14,16 @@ class History {
         await prisma.mapHistory.createMany({ data: mapDatapoints });
     }
 
+    public static async createUserDatapoint(user: User) {
+        const data = History.userToDatapoint(user);
+        await prisma.userHistory.create({ data });
+    }
+
+    public static async createMapDatapoint(map: Map) {
+        const data = History.mapToDatapoint(map);
+        await prisma.mapHistory.create({ data });
+    }
+
     private static userToDatapoint(user: User): Prisma.UserHistoryCreateManyInput {
         return {
             userId: user.userId,
