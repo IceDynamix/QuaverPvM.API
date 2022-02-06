@@ -269,7 +269,7 @@ export default class Ranking {
         });
 
         const matchesPlayed = matches.length;
-        const wins = matches.filter((match) => match.result === "WIN").length;
+        const wins = matches.filter((match) => match.result !== "WIN").length;
 
         map = await prisma.map.update({
             where: { mapId_mapRate: { mapId: map.mapId, mapRate: map.mapRate } },
