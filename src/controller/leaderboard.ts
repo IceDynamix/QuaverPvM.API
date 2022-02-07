@@ -28,4 +28,28 @@ export default class LeaderboardController {
 
         res.json(results);
     }
+
+    public static async mapGET(req: Request, res: Response, next: Function) {
+        const { page, full, allrates } = req.query;
+
+        const pageNumber = page ? Math.max(parseInt(page.toString()), 0) : 0;
+
+        let filter = {};
+        if (!full) filter = { ...filter, matchesPlayed: { gte: Ranking.rankedMatchesPlayedMapThreshold } };
+        if (!allrates) filter = { ...filter, mapRate: 1.0 };
+
+        let results = await prisma.map.findMany({
+            where: filter,
+            orderBy: { rating: "desc" },
+            skip: pageSize * pageNumber,
+            take: pageSize,
+        });
+
+        for (const result of results) {
+            const rankInformation = await Ranking.getMapRankInformation(result);
+            Object.assign(result, rankInformation);
+        }
+
+        res.json(results);
+    }
 }

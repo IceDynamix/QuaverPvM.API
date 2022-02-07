@@ -133,6 +133,7 @@ export default class Server {
         app.get("/map/search", MapController.mapSearchGET);
 
         app.get("/leaderboard", LeaderboardController.GET);
+        app.get("/leaderboard/map", LeaderboardController.mapGET);
         app.get("/stats", StatsController.GET);
 
         app.get("/match", MatchController.GET);
