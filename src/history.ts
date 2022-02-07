@@ -1,5 +1,6 @@
 import { User, Map, Prisma } from "@prisma/client";
 import prisma from "./config/prisma";
+import Ranking from "./ranking";
 
 class History {
     public static async createUserDatapoints() {
@@ -43,6 +44,27 @@ class History {
             wins: map.wins,
             matchesPlayed: map.matchesPlayed,
         };
+    }
+
+    public static async getUserHistory(user: User) {
+        return await prisma.userHistory.findMany({
+            where: {
+                userId: user.userId,
+            },
+            take: 50,
+            orderBy: { timestamp: "desc" },
+        });
+    }
+
+    public static async getMapHistory(map: Map) {
+        return await prisma.mapHistory.findMany({
+            where: {
+                mapId: map.mapId,
+                mapRate: map.mapRate,
+            },
+            take: 50,
+            orderBy: { timestamp: "desc" },
+        });
     }
 }
 

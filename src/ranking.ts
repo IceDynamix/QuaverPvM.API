@@ -48,6 +48,7 @@ export default class Ranking {
             return {
                 rank: null,
                 letterRank: "z",
+                history: [],
             };
         }
 
@@ -66,9 +67,12 @@ export default class Ranking {
                 break;
             }
 
+        let history = await History.getUserHistory(user);
+
         return {
             rank: rank + 1,
             letterRank,
+            history,
         };
     }
 
@@ -96,9 +100,12 @@ export default class Ranking {
                 break;
             }
 
+        let history = await History.getMapHistory(map);
+
         return {
             rank,
             letterRank,
+            history,
         };
     }
 
@@ -225,6 +232,8 @@ export default class Ranking {
             ].join(" | ")
         );
 
+        const previousMatchesPlayed = user.matchesPlayed;
+
         const matches = await prisma.match.findMany({
             where: { userId: user.userId },
             select: { result: true },
@@ -248,7 +257,9 @@ export default class Ranking {
             await redis.zadd(userLeaderboardKey, user.rating, user.userId.toString());
         }
 
-        await History.createUserDatapoint(user);
+        if (user.matchesPlayed > previousMatchesPlayed) {
+            await History.createUserDatapoint(user);
+        }
 
         return user;
     }
@@ -262,6 +273,8 @@ export default class Ranking {
                 `Sigma ${map.sigma.toFixed(4)} -> ${mapPlayer.Rating().Sigma().toFixed(4)}`,
             ].join(" | ")
         );
+
+        const previousMatchesPlayed = map.matchesPlayed;
 
         const matches = await prisma.match.findMany({
             where: { mapId: map.mapId, mapRate: map.mapRate },
@@ -286,7 +299,9 @@ export default class Ranking {
             await redis.zadd(mapLeaderboardKey, map.rating, `${map.mapId},${map.mapRate}`);
         }
 
-        await History.createMapDatapoint(map);
+        if (map.matchesPlayed > previousMatchesPlayed) {
+            await History.createMapDatapoint(map);
+        }
 
         return map;
     }
