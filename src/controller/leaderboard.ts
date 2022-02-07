@@ -35,8 +35,8 @@ export default class LeaderboardController {
         const pageNumber = page ? Math.max(parseInt(page.toString()), 0) : 0;
 
         let filter = {};
-        if (!full) filter = { ...filter, matchesPlayed: { gte: Ranking.rankedMatchesPlayedMapThreshold } };
-        if (!allrates) filter = { ...filter, mapRate: 1.0 };
+        if (full != "true") filter = { ...filter, matchesPlayed: { gte: Ranking.rankedMatchesPlayedMapThreshold } };
+        if (allrates != "true") filter = { ...filter, mapRate: 1.0 };
 
         let results = await prisma.map.findMany({
             where: filter,
