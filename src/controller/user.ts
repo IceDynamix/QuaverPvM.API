@@ -28,7 +28,7 @@ export default class UserController {
         if (user.banned === true) return res.json(null);
 
         const quaverData = await QuaverApi.getFullUser(user.userId);
-        if ("info" in quaverData && "username" in quaverData.info) {
+        if (quaverData && "info" in quaverData && "username" in quaverData.info) {
             const username = quaverData.info.username;
             if (user.username != username) {
                 await prisma.user.update({ where: { userId: user.userId }, data: { username } });
