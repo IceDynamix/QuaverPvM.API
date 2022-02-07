@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import Ranking from "../ranking";
+import History from "../history";
 import Matching from "../matching";
 import QuaverApi from "../quaver/quaverApi";
-import { Map } from ".prisma/client";
 
 export default class MapController {
     public static async GET(req: Request, res: Response, next: Function) {
@@ -21,6 +21,10 @@ export default class MapController {
             } else {
                 const rankInformation = await Ranking.getMapRankInformation(result);
                 Object.assign(result, rankInformation);
+
+                let history = await History.getMapHistory(result);
+                Object.assign(result, { history });
+
                 return res.json(result);
             }
         } else {

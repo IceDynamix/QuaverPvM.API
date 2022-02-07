@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import QuaverApi from "../quaver/quaverApi";
 import Ranking from "../ranking";
+import History from "../history";
 
 const pageSize = 50;
 
@@ -19,6 +20,10 @@ export default class UserController {
         } else {
             const rankInformation = await Ranking.getUserRankInformation(user);
             Object.assign(user, rankInformation);
+
+            let history = await History.getUserHistory(user);
+            Object.assign(user, { history });
+
             res.json(user);
         }
     }

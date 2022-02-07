@@ -67,12 +67,9 @@ export default class Ranking {
                 break;
             }
 
-        let history = await History.getUserHistory(user);
-
         return {
             rank: rank + 1,
             letterRank,
-            history,
         };
     }
 
@@ -100,12 +97,9 @@ export default class Ranking {
                 break;
             }
 
-        let history = await History.getMapHistory(map);
-
         return {
             rank,
             letterRank,
-            history,
         };
     }
 
