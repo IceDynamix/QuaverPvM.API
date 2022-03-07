@@ -217,6 +217,8 @@ export default class Ranking {
     }
 
     private static async updateUserRating(user: User, userPlayer: Player): Promise<User> {
+        if (userPlayer.Rating().rating < 500) userPlayer.Rating().setRating(500);
+
         console.info(
             [
                 `User ${user.userId}`,
@@ -259,6 +261,8 @@ export default class Ranking {
     }
 
     private static async updateMapRating(map: Map, mapPlayer: Player, result: boolean | null = null): Promise<Map> {
+        if (mapPlayer.Rating().rating < 500) mapPlayer.Rating().setRating(500);
+
         console.info(
             [
                 `Map ${map.mapId} ${map.mapRate}x`,
