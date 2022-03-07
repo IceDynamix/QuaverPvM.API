@@ -77,28 +77,36 @@ export default class Matching {
 
         const qr = Ranking.glickoToQr(user.rating);
 
-        // Ensures the window is always large enough
-        const lowerBound = Ranking.qrToGlicko(Math.max(0, qr - qrMatchWindow));
-        const upperBound = Ranking.qrToGlicko(Math.max(2 * qrMatchWindow, qr + qrMatchWindow));
+        let qrRange = qrMatchWindow;
+        let foundMap = null;
 
-        let filter: Prisma.MapWhereInput = {
-            rating: {
-                gte: lowerBound,
-                lte: upperBound,
-            },
-            mapsetId: { notIn: lastPlayedMapSetIds },
-        };
+        while (foundMap === null) {
+            const lowerBound = Ranking.qrToGlicko(Math.max(0, qr - qrRange));
+            const upperBound = Ranking.qrToGlicko(Math.max(2 * qrMatchWindow, qr + qrRange));
 
-        if (user.rating < 1400) {
-            filter = { ...filter, mapRate: 1.0 };
+            let filter: Prisma.MapWhereInput = {
+                rating: {
+                    gte: lowerBound,
+                    lte: upperBound,
+                },
+                mapsetId: { notIn: lastPlayedMapSetIds },
+            };
+
+            if (user.rating < 1400) {
+                filter = { ...filter, mapRate: 1.0 };
+            }
+
+            const mapsInRange = await prisma.map.findMany({ where: filter });
+
+            if (mapsInRange.length === 0) {
+                qrRange += 1;
+            } else {
+                const randomIndex = Math.round((mapsInRange.length - 1) * Math.random());
+                foundMap = mapsInRange[randomIndex];
+            }
         }
 
-        const mapsInRange = await prisma.map.findMany({ where: filter });
-
-        if (mapsInRange.length === 0) throw `No maps in range ${lowerBound.toFixed(0)}-${upperBound.toFixed(0)}`;
-
-        const randomIndex = Math.round((mapsInRange.length - 1) * Math.random());
-        return mapsInRange[randomIndex];
+        return foundMap;
     }
 
     public static async findMapInRatingRange(min: number, max: number): Promise<Map | null> {
